@@ -227,7 +227,7 @@ td.cP{color:var(--ok);font-weight:700} td.cT{color:var(--late);font-weight:700} 
    AsistQR 10 F — control de asistencia con QR
    Los datos se guardan en el propio celular (localStorage).
    ========================================================= */
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 // Llave pública del administrador (dueño). Solo quien tiene la clave maestra puede crear códigos.
 const ADMIN_PUB = {kty:'EC',crv:'P-256',x:'cNRSCzlm58bkhWh_sVceoD0FmkWqbmHwZIT42xiNquo',y:'4s97MZUcwfYX2LCWr3vckrdMTZi32m1DMIlC5pk0gKI',ext:true};
 
@@ -681,12 +681,26 @@ async function startScanner(){
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ $('#smsg').textContent = 'Este navegador no permite usar la cámara. Abre la app con https en Chrome o Safari.'; return; }
   try{
     stopScanner();
-    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:cfg.cam}, width:{ideal:1280}, height:{ideal:720}}, audio:false});
+    try{ stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:cfg.cam}, width:{ideal:1280}, height:{ideal:720}}, audio:false}); }
+    catch(e1){ if(e1 && (e1.name === 'NotAllowedError' || e1.name === 'SecurityError')) throw e1; stream = await navigator.mediaDevices.getUserMedia({video:true, audio:false}); }
     const v = $('#vid'); if(!v){ stopScanner(); return; }
     v.srcObject = stream; await v.play(); off.hidden = true; paused = false;
     try{ if('BarcodeDetector' in window){ const f = await BarcodeDetector.getSupportedFormats(); detector = f.includes('qr_code') ? new BarcodeDetector({formats:['qr_code']}) : null; } }catch(e){ detector = null; }
     scanLoop();
-  }catch(e){ off.hidden = false; $('#smsg').textContent = 'No se pudo abrir la cámara. Revisa que la app tenga permiso de cámara.'; }
+  }catch(e){ off.hidden = false; const n = e && e.name;
+    $('#smsg').textContent = n === 'NotAllowedError' || n === 'SecurityError' ? 'La cámara está bloqueada para AsistQR. Toca “Cómo dar permiso”.'
+      : n === 'NotReadableError' || n === 'AbortError' ? 'Otra app está usando la cámara. Ciérrala (WhatsApp, cámara, videollamada) y vuelve a intentar.'
+      : n === 'NotFoundError' || n === 'OverconstrainedError' ? 'No se encontró una cámara. Prueba con “Cámara frontal/trasera”.'
+      : 'No se pudo abrir la cámara (' + (n || 'error') + ').';
+    if(!$('#camHelp')){ const b = document.createElement('button'); b.className = 'btn sm'; b.id = 'camHelp'; b.textContent = 'Cómo dar permiso'; b.onclick = camHelp; $('#soff .stack').appendChild(b); } }
+}
+function camHelp(){
+  sheet(`<h3>Dar permiso de cámara</h3>
+  <p style="margin:0"><b>Opción 1 (app instalada):</b> mantén presionado el ícono rojo de <b>AsistQR</b> → <b>Información de la app</b> (ⓘ) → <b>Permisos</b> → <b>Cámara</b> → <b>Permitir</b>.</p>
+  <p style="margin:0"><b>Opción 2 (desde Chrome):</b> abre Chrome → menú <b>⋮</b> → <b>Configuración</b> → <b>Configuración de sitios</b> → <b>Cámara</b>. Activa la cámara, y si <b>alvaroangolahuanca-stack.github.io</b> aparece en <b>Bloqueados</b>, tócalo y elige <b>Permitir</b>.</p>
+  <p style="margin:0">Revisa también que Chrome tenga permiso: <b>Ajustes del celular → Apps → Chrome → Permisos → Cámara → Permitir</b>.</p>
+  <p class="hint" style="margin:0">Luego cierra AsistQR por completo y vuelve a abrirla.</p>
+  <button class="btn pri block" onclick="closeSheet();startScanner()">Intentar de nuevo</button>`);
 }
 function stopScanner(){ clearTimeout(scanTimer); clearTimeout(autoT); scanTimer = null; if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; } }
 const scanCanvas = document.createElement('canvas'); const scanCtx = scanCanvas.getContext('2d', {willReadFrequently:true});
