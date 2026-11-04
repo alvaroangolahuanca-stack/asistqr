@@ -227,7 +227,7 @@ td.cP{color:var(--ok);font-weight:700} td.cT{color:var(--late);font-weight:700} 
    AsistQR 10 F — control de asistencia con QR
    Los datos se guardan en el propio celular (localStorage).
    ========================================================= */
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.1';
 // Llave pública del administrador (dueño). Solo quien tiene la clave maestra puede crear códigos.
 const ADMIN_PUB = {kty:'EC',crv:'P-256',x:'cNRSCzlm58bkhWh_sVceoD0FmkWqbmHwZIT42xiNquo',y:'4s97MZUcwfYX2LCWr3vckrdMTZi32m1DMIlC5pk0gKI',ext:true};
 
@@ -1060,6 +1060,23 @@ function bindPortal(){
 }
 function latestMonth(k){ const ds = Object.keys(parseRecs(k)).sort(); const cur = today().slice(0,7); return ds.length && ds[ds.length-1].slice(0,7) < cur && ds[ds.length-1].startsWith(k.y) ? ds[ds.length-1].slice(0,7) : (String(k.y) === cur.slice(0,4) ? cur : ds.length ? ds[ds.length-1].slice(0,7) : cur); }
 
+/* ---------- Carga de datos por enlace (#d=) ---------- */
+async function importLink(b){
+  let d; try{ d = JSON.parse(dec.decode(ub64u(b))); if(d.app !== 'AsistQR') throw 0; }catch(e){ toast('El enlace de datos no es válido'); return; }
+  const apply = async () => {
+    const c = Object.assign({}, d.cfg || {});
+    if(c.logoUE && !c.logoUE.startsWith('data:')){ try{ const bl = await (await fetch(c.logoUE)).blob(); c.logoUE = await new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(bl); }); }catch(e){ c.logoUE = ''; } }
+    cfg = Object.assign(cfg, c); saveCfg();
+    const nuevos = (d.students || []).filter(s => !students.some(x => x.nombre === s.nombre));
+    students = students.concat(nuevos.map(s => Object.assign({id:uid(8), ci:'', rude:'', genero:'', nac:'', tutor:'', tel:'', foto:''}, s)));
+    students.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')); saveStudents(); carSel = null;
+    route = 'hoy'; render(); toast(`Listo: ${nuevos.length} estudiantes cargados`);
+  };
+  sheet(`<h3>Cargar datos</h3><p style="margin:0">Se cargarán <b>${esc(d.cfg && d.cfg.ue || '')}</b> – <b>${esc(d.cfg && d.cfg.grado || '')}</b>, el logo y <b>${(d.students||[]).length} estudiantes</b>.</p><button class="btn pri big block" id="ilGo">Cargar ahora</button><button class="btn block" onclick="closeSheet()">Cancelar</button>`, s => {
+    $('#ilGo', s).onclick = async () => { closeSheet(); await apply(); };
+  });
+}
+
 /* ---------- Arranque ---------- */
 (async function boot(){
   if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -1067,6 +1084,10 @@ function latestMonth(k){ const ds = Object.keys(parseRecs(k)).sort(); const cur 
   if(h.startsWith('#p=')){ portalPending = h.slice(3); route = 'portal'; history.replaceState(null, '', location.pathname); }
   if(h.startsWith('#c=')){ const code = h.slice(3); history.replaceState(null, '', location.pathname);
     if(!lic){ try{ await activate(code); }catch(e){ route = 'activar'; render(); $('#acCode').value = code; $('#acErr').textContent = e.message || 'Código inválido.'; return; } }
+  }
+  if(h.startsWith('#d=')){ history.replaceState(null, '', location.pathname);
+    if(lic){ render(); await importLink(h.slice(3)); return; }
+    route = 'activar'; render(); setTimeout(() => toast('Primero entra con tu código y vuelve a abrir el enlace'), 300); return;
   }
   if(!lic && route === 'hoy') route = 'welcome';
   render();
