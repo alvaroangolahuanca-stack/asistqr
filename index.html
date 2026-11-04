@@ -1,0 +1,1079 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AsistQR 10 F</title>
+<meta name="description" content="Control de asistencia escolar con QR, carnets y avisos por WhatsApp.">
+<meta name="theme-color" content="#C8102E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AsistQR">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: una sola columna tipo app móvil (máx. 560px), cabecera roja institucional y barra de navegación inferior */
+:root{
+  --red:#C8102E; --red-dk:#8E0B21; --red-soft:#FBE9EC;
+  --ink:#231719; --muted:#6E5F62; --line:#EADFE1; --paper:#FFFFFF; --mist:#F7F2F3;
+  --ok:#1E7F4A; --ok-bg:#E3F4EA; --late:#B86A00; --late-bg:#FDF0DA;
+  --abs:#7A1020; --abs-bg:#F6DADF; --lic:#2459A0; --lic-bg:#E2ECF8; --wa:#1DA851;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:14px; color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--mist);color:var(--ink);font:16px/1.4 var(--body);-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+img{max-width:100%}
+[hidden]{display:none!important}
+.app{max-width:560px;margin:0 auto;min-height:100%;background:var(--paper);display:flex;flex-direction:column;position:relative}
+/* Cabecera */
+.top{background:var(--red);color:#fff;padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:20}
+.top .logo{width:44px;height:44px;border-radius:50%;background:#fff;flex:none;display:grid;place-items:center;overflow:hidden}
+.top .logo img{width:40px;height:40px;object-fit:contain}
+.top .t1{font:700 20px/1.05 var(--display);letter-spacing:.2px;text-transform:uppercase}
+.top .t2{font-size:13px;opacity:.9}
+.top .grow{flex:1;min-width:0}
+.top .grow div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gbadge{width:40px;height:40px;border-radius:10px;background:#fff;flex:none;overflow:hidden;display:grid;place-items:center}
+.gbadge img{width:38px;height:38px;object-fit:contain}
+main{flex:1;padding:16px max(16px,env(safe-area-inset-right,0px)) 110px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:16px}
+/* Navegación */
+nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--paper);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:2px}
+nav.tabs button{border:0;background:none;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11.5px;font-weight:600;color:var(--muted);border-radius:10px;cursor:pointer}
+nav.tabs button svg{width:24px;height:24px}
+nav.tabs button.on{color:var(--red)}
+nav.tabs button.scan{color:#fff}
+nav.tabs button.scan .ic{background:var(--red);border-radius:16px;width:52px;height:40px;display:grid;place-items:center;margin-top:-4px;box-shadow:0 4px 12px rgba(200,16,46,.35)}
+nav.tabs button.scan span{color:var(--red)}
+/* Tipografía y piezas */
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.05;text-wrap:balance}
+h2{font-size:26px;font-weight:800;text-transform:uppercase;letter-spacing:.3px}
+h3{font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--red-dk)}
+.sub{color:var(--muted);font-size:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:10px}
+.btn{border:1.5px solid var(--line);background:var(--paper);border-radius:12px;padding:11px 14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;text-decoration:none;color:var(--ink)}
+.btn:focus-visible,nav.tabs button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(200,16,46,.35);outline-offset:2px}
+.btn.pri{background:var(--red);border-color:var(--red);color:#fff}
+.btn.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
+.btn.ghost{border-color:transparent;background:var(--mist)}
+.btn.sm{min-height:36px;padding:6px 11px;font-size:14px;border-radius:10px}
+.btn.block{width:100%}
+.btn svg{width:20px;height:20px;flex:none}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.big{min-height:64px;font:800 22px var(--display);text-transform:uppercase;letter-spacing:.6px;border-radius:16px}
+.card{border:1px solid var(--line);border-radius:var(--r);padding:14px;background:var(--paper)}
+.card.soft{background:var(--mist);border-color:transparent}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.field input,.field select,.field textarea{border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;background:#fff;min-height:46px;width:100%}
+.field textarea{min-height:90px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid2>*{min-width:0}
+@media (max-width:380px){.grid2{grid-template-columns:1fr}}
+.hint{font-size:13px;color:var(--muted)}
+/* Estados */
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;white-space:nowrap}
+.pill.P{background:var(--ok-bg);color:var(--ok)}
+.pill.T{background:var(--late-bg);color:var(--late)}
+.pill.F{background:var(--abs-bg);color:var(--abs)}
+.pill.L{background:var(--lic-bg);color:var(--lic)}
+.pill.N{background:var(--mist);color:var(--muted)}
+/* Resumen del día */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{border-radius:12px;padding:10px 8px;text-align:center;cursor:pointer;border:2px solid transparent}
+.stat b{display:block;font:800 28px/1 var(--display);font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.stat.P{background:var(--ok-bg);color:var(--ok)} .stat.T{background:var(--late-bg);color:var(--late)}
+.stat.F{background:var(--abs-bg);color:var(--abs)} .stat.N{background:var(--mist);color:var(--muted)}
+.stat.sel{border-color:currentColor}
+.datebar{display:flex;align-items:center;gap:8px}
+.datebar .d{flex:1;text-align:center}
+.datebar .d b{display:block;font:700 20px var(--display);text-transform:uppercase}
+.iconbtn{width:42px;height:42px;border-radius:12px;border:1.5px solid var(--line);background:#fff;display:grid;place-items:center;cursor:pointer;flex:none}
+.iconbtn svg{width:20px;height:20px}
+/* Listas */
+.list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--line);background:#fff;cursor:pointer;min-height:62px}
+.item:last-child{border-bottom:0}
+.item .nm{flex:1;min-width:0}
+.item .nm b{display:block;font-weight:600;font-size:15px;line-height:1.2}
+.item .nm small{color:var(--muted);font-size:13px}
+.av{width:42px;height:42px;border-radius:50%;background:var(--red-soft);color:var(--red-dk);display:grid;place-items:center;font:700 16px var(--display);flex:none;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover}
+.wab{width:38px;height:38px;border-radius:50%;border:0;display:grid;place-items:center;cursor:pointer;flex:none;background:var(--wa);color:#fff}
+.wab.done{background:var(--mist);color:var(--ok)}
+.wab svg{width:20px;height:20px}
+.num{font-variant-numeric:tabular-nums}
+.search{position:relative}
+.search input{padding-left:40px}
+.search svg{position:absolute;left:12px;top:13px;width:20px;height:20px;color:var(--muted)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;white-space:nowrap;cursor:pointer}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.empty{text-align:center;padding:28px 12px;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font:700 20px var(--display);text-transform:uppercase;margin-bottom:4px}
+/* Hoja inferior (modal) */
+.ov{position:fixed;inset:0;background:rgba(35,23,25,.55);z-index:50;display:flex;align-items:flex-end;justify-content:center;animation:fade .15s}
+.sheet{background:#fff;width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px;animation:up .2s}
+.sheet .grab{width:44px;height:5px;border-radius:3px;background:var(--line);margin:0 auto}
+@keyframes up{from{transform:translateY(30px);opacity:.6}}
+@keyframes fade{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:80;font-weight:600;max-width:calc(100% - 32px);text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.estbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.estbtns .btn{min-height:56px;font-weight:700}
+.estbtns .P{background:var(--ok-bg);border-color:var(--ok-bg);color:var(--ok)}
+.estbtns .T{background:var(--late-bg);border-color:var(--late-bg);color:var(--late)}
+.estbtns .F{background:var(--abs-bg);border-color:var(--abs-bg);color:var(--abs)}
+.estbtns .L{background:var(--lic-bg);border-color:var(--lic-bg);color:var(--lic)}
+.estbtns .on{outline:3px solid currentColor;outline-offset:-3px}
+/* Escáner */
+.scanbox{position:relative;border-radius:18px;overflow:hidden;background:#140c0d;aspect-ratio:3/4;max-height:62vh;width:100%}
+.scanbox video{width:100%;height:100%;object-fit:cover;display:block}
+.scanbox .frame{position:absolute;inset:16% 12%;pointer-events:none}
+.scanbox .frame i{position:absolute;width:42px;height:42px;border:5px solid #fff;border-radius:6px}
+.scanbox .frame i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0}
+.scanbox .frame i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0}
+.scanbox .frame i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0}
+.scanbox .frame i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0}
+.scanbox .laser{position:absolute;left:14%;right:14%;height:3px;background:var(--red);box-shadow:0 0 12px var(--red);top:50%;animation:las 2s ease-in-out infinite alternate}
+@keyframes las{from{top:20%}to{top:78%}}
+.scanbox .msg{position:absolute;left:0;right:0;bottom:0;padding:14px;color:#fff;text-align:center;font-weight:600;background:linear-gradient(transparent,rgba(0,0,0,.7))}
+.scanbox .off{position:absolute;inset:0;display:grid;place-items:center;color:#fff;text-align:center;padding:24px}
+.result{position:absolute;inset:0;background:rgba(255,255,255,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px;text-align:center}
+.result .ph{width:132px;height:166px;border-radius:12px;object-fit:cover;border:4px solid var(--ok);background:var(--mist)}
+.result.T .ph{border-color:var(--late)} .result.X .ph{border-color:var(--abs)}
+.result .st{font:800 30px var(--display);text-transform:uppercase;letter-spacing:.5px}
+.result.P .st{color:var(--ok)} .result.T .st{color:var(--late)} .result.X .st{color:var(--abs)}
+.result .nm{font:700 22px/1.1 var(--display);text-transform:uppercase}
+.result .bar{position:absolute;left:0;bottom:0;height:5px;background:var(--red)}
+.toggles{display:flex;gap:8px;flex-wrap:wrap}
+.tog{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;font-weight:600;font-size:14px;cursor:pointer;background:#fff}
+.tog input{width:18px;height:18px;accent-color:var(--red)}
+/* Carnets */
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.cgrid figure{margin:0;display:flex;flex-direction:column;gap:6px}
+.cgrid canvas,.cgrid img{width:100%;height:auto;border-radius:8px;box-shadow:0 2px 10px rgba(35,23,25,.15);background:#fff}
+.cgrid label{display:flex;gap:6px;align-items:center;font-size:13px;font-weight:600}
+/* Tabla mensual */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r)}
+table.month{border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;min-width:100%}
+table.month th,table.month td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:center;white-space:nowrap}
+table.month th{background:var(--mist);font-weight:700;position:sticky;top:0}
+table.month td.n,table.month th.n{text-align:left;position:sticky;left:0;background:#fff;max-width:150px;overflow:hidden;text-overflow:ellipsis;padding-left:8px;border-right:1px solid var(--line)}
+table.month th.n{background:var(--mist)}
+td.cP{color:var(--ok);font-weight:700} td.cT{color:var(--late);font-weight:700} td.cF{color:var(--abs);font-weight:700;background:var(--abs-bg)} td.cL{color:var(--lic);font-weight:700}
+/* Calendario */
+.cal{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.cal .h{font-size:12px;font-weight:700;color:var(--muted);text-align:center;text-transform:uppercase}
+.cal .c{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--mist);font-weight:700;font-variant-numeric:tabular-nums}
+.cal .c small{font-size:10.5px;font-weight:600}
+.cal .c.P{background:var(--ok-bg);color:var(--ok)} .cal .c.T{background:var(--late-bg);color:var(--late)}
+.cal .c.F{background:var(--abs-bg);color:var(--abs)} .cal .c.L{background:var(--lic-bg);color:var(--lic)}
+.cal .c.x{background:transparent}
+.legend{display:flex;gap:6px;flex-wrap:wrap}
+/* Bienvenida */
+.hero{background:var(--red);color:#fff;border-radius:20px;padding:24px 20px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+.hero h1{font-size:44px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.hero p{margin:0;opacity:.95}
+.hero .qrmark{position:absolute;right:-20px;top:-20px;width:150px;opacity:.16}
+.choice{display:flex;gap:14px;align-items:center;text-align:left;padding:16px;border:1.5px solid var(--line);border-radius:16px;background:#fff;cursor:pointer;width:100%}
+.choice .ci{width:52px;height:52px;border-radius:14px;background:var(--red-soft);color:var(--red);display:grid;place-items:center;flex:none}
+.choice .ci svg{width:28px;height:28px}
+.choice b{font:700 20px var(--display);text-transform:uppercase;display:block}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;word-break:break-all;background:var(--mist);border-radius:10px;padding:10px}
+.logoprev{width:64px;height:64px;border-radius:12px;border:1.5px dashed var(--line);display:grid;place-items:center;overflow:hidden;background:#fff;flex:none}
+.logoprev img{width:100%;height:100%;object-fit:contain}
+.banner{background:var(--red-soft);color:var(--red-dk);border-radius:12px;padding:12px 14px;font-weight:600}
+/* Impresión */
+#print{display:none}
+@media print{
+  body{background:#fff}
+  .app,nav.tabs,.ov,.toast{display:none!important}
+  #print{display:block}
+  .psheet{display:grid;grid-template-columns:repeat(3,54mm);grid-auto-rows:85.6mm;gap:5mm;justify-content:center;page-break-after:always;break-after:page}
+  .psheet img{width:54mm;height:85.6mm;outline:.2mm dashed #bbb}
+  .prep h2{font:800 18pt var(--display);text-transform:uppercase;margin:0 0 2mm}
+  .prep .meta{font-size:10pt;margin-bottom:4mm}
+  .prep table{border-collapse:collapse;width:100%;font-size:8pt}
+  .prep th,.prep td{border:.2mm solid #999;padding:1mm;text-align:center}
+  .prep td.n{text-align:left;white-space:nowrap}
+  .prep .head{display:flex;align-items:center;gap:4mm;margin-bottom:3mm}
+  .prep .head img{width:16mm;height:16mm;object-fit:contain}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<nav class="tabs" id="tabs" hidden></nav>
+<div id="print"></div>
+
+<script src="vendor/jsQR.js"></script>
+<script src="vendor/qrcode.js"></script>
+<script>
+'use strict';
+/* =========================================================
+   AsistQR 10 F — control de asistencia con QR
+   Los datos se guardan en el propio celular (localStorage).
+   ========================================================= */
+const APP_VERSION = '1.0.0';
+// Llave pública del administrador (dueño). Solo quien tiene la clave maestra puede crear códigos.
+const ADMIN_PUB = {kty:'EC',crv:'P-256',x:'cNRSCzlm58bkhWh_sVceoD0FmkWqbmHwZIT42xiNquo',y:'4s97MZUcwfYX2LCWr3vckrdMTZi32m1DMIlC5pk0gKI',ext:true};
+
+/* ---------- Almacenamiento ---------- */
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ toast('No se pudo guardar: memoria llena. Haz un respaldo y reduce fotos.'); return false; } },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+function defaultCfg(){
+  return {
+    ue:'', nivel:'', grado:'', maestro:'', ciudad:'', gestion:String(new Date().getFullYear()),
+    hora:'08:30', tol:0, logoUE:'', logoGrado:'', color:'#C8102E',
+    auto:true, autoMs:2500, cam:'environment',
+    msgP:'✅ *{ue}* – {grado}\nEstimado(a) padre/madre de familia: {hijo} *{estudiante}* registró su ENTRADA el {fecha} a las *{hora}*.\n_AsistQR – Prof. {maestro}_',
+    msgT:'⏰ *{ue}* – {grado}\nEstimado(a) padre/madre de familia: {hijo} *{estudiante}* llegó con RETRASO el {fecha} a las *{hora}* (hora de entrada: {entrada}).\n_AsistQR – Prof. {maestro}_',
+    msgF:'❌ *{ue}* – {grado}\nEstimado(a) padre/madre de familia: {hijo} *{estudiante}* NO ASISTIÓ a clases el {fecha}. Si tiene alguna justificación, por favor comuníquese con el maestro.\n_AsistQR – Prof. {maestro}_',
+    msgL:'📝 *{ue}* – {grado}\nEstimado(a) padre/madre de familia: {hijo} *{estudiante}* tiene LICENCIA registrada el {fecha}.\n_AsistQR – Prof. {maestro}_'
+  };
+}
+let cfg = Object.assign(defaultCfg(), LS.get('aqr_cfg', {}));
+let students = LS.get('aqr_students', []);
+let att = LS.get('aqr_att', {});          // { 'YYYY-MM-DD': { idEst: {e,h,m,wa,n} } }
+let offDays = LS.get('aqr_off', []);      // días sin clases
+let lic = LS.get('aqr_lic', null);        // activación del maestro
+let kids = LS.get('aqr_kids', []);        // portal de padres: reportes recibidos
+const saveCfg = () => LS.set('aqr_cfg', cfg);
+const saveStudents = () => LS.set('aqr_students', students);
+const saveAtt = () => LS.set('aqr_att', att);
+const saveOff = () => LS.set('aqr_off', offDays);
+
+/* ---------- Utilidades ---------- */
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today = () => ymd(new Date());
+const nowHM = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const parseD = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const fechaLarga = s => { const d = parseD(s); return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`; };
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const titleCase = s => String(s||'').toLowerCase().replace(/(^|[\s\-])(\S)/g, (m,a,b) => a + b.toUpperCase());
+const uid = (n=8) => { const a = new Uint8Array(n); crypto.getRandomValues(a); return [...a].map(x => 'abcdefghijkmnpqrstuvwxyz23456789'[x % 32]).join(''); };
+const initials = n => String(n||'?').trim().split(/\s+/).slice(0,2).map(w => w[0]).join('').toUpperCase();
+const normCI = s => String(s||'').toUpperCase().replace(/[^0-9A-Z]/g,'');
+const hmToMin = s => { const [h,m] = String(s||'0:0').split(':').map(Number); return h*60 + (m||0); };
+function phoneWA(p){ let d = String(p||'').replace(/\D/g,''); if(!d) return ''; if(d.length === 8) d = '591' + d; return d; }
+function hijoDe(s){ return s.genero === 'F' ? 'su hija' : s.genero === 'M' ? 'su hijo' : 'su hijo(a)'; }
+const EST = {P:'Presente', T:'Tarde', F:'Falta', L:'Licencia'};
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const ub64u = s => { s = s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length % 4) s += '='; const b = atob(s); const u = new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i] = b.charCodeAt(i); return u; };
+const enc = new TextEncoder(), dec = new TextDecoder();
+function baseURL(){ return location.origin + location.pathname.replace(/index\.html$/,''); }
+
+let toastT;
+function toast(msg){ let t = $('.toast'); if(!t){ t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); } t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
+async function copyText(txt){ try{ await navigator.clipboard.writeText(txt); toast('Copiado'); }catch(e){ const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); toast('Copiado'); }catch(_){ toast('Mantén presionado el texto para copiar'); } ta.remove(); } }
+function openWA(phone, text){ const p = phoneWA(phone); const url = (p ? `https://wa.me/${p}` : 'https://wa.me/') + '?text=' + encodeURIComponent(text); window.open(url, '_blank'); }
+function loadScript(src){ return new Promise((ok, no) => { if($(`script[src="${src}"]`)) return ok(); const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+function downloadBlob(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+
+/* ---------- Íconos ---------- */
+const I = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v3M16 2v3M3.5 9h17M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="m9 15 2 2 4-4"/></svg>',
+  scan:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="4" height="4"/><rect x="13" y="13" width="4" height="4"/><path d="M13 7h4v2M7 15v2h2"/></svg>',
+  users:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  card:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M8.5 15h7M9.5 18h5"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15v3M11 10v8M15 12v6M19 6v12"/></svg>',
+  more:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  wa:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1-.3-.1-.5-.1-.7.1-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.4-.5c.2-.2.2-.3.3-.5.1-.2.1-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.4.2-.7.2-1.3.2-1.4-.1-.2-.3-.3-.6-.4zM12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2z"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
+  left:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+  right:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  print:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
+  dl:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
+  cam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  flip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5M17 4l3 3-3 3M8 14l-3 3 3 3"/></svg>',
+  teacher:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>',
+  family:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5" r="2.5"/><circle cx="17" cy="8" r="2"/><path d="M4 21v-7a4 4 0 0 1 8 0v7M14 21v-5a3 3 0 0 1 6 0v5"/></svg>',
+  lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>'
+};
+
+/* ---------- Hoja modal ---------- */
+function sheet(html, mount){
+  closeSheet();
+  const ov = document.createElement('div'); ov.className = 'ov'; ov.id = 'ov';
+  ov.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
+  ov.addEventListener('click', e => { if(e.target === ov) closeSheet(); });
+  document.body.appendChild(ov);
+  mount && mount(ov.querySelector('.sheet'));
+  return ov.querySelector('.sheet');
+}
+function closeSheet(){ const o = $('#ov'); if(o) o.remove(); }
+function confirmSheet(title, text, okLabel, onOk, danger){
+  sheet(`<h3>${esc(title)}</h3><p style="margin:0">${text}</p><div class="grid2"><button class="btn" id="cNo">Cancelar</button><button class="btn ${danger?'dark':'pri'}" id="cOk">${esc(okLabel)}</button></div>`, s => {
+    $('#cNo', s).onclick = closeSheet; $('#cOk', s).onclick = () => { closeSheet(); onOk(); };
+  });
+}
+
+/* ---------- Imágenes ---------- */
+function fileToImg(file){ return new Promise((ok, no) => { const r = new FileReader(); r.onload = () => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = r.result; }; r.onerror = no; r.readAsDataURL(file); }); }
+async function photoFromFile(file){ // recorte 3:4 centrado, 300x400
+  const im = await fileToImg(file); const W = 300, H = 400; const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d'); const r = Math.max(W/im.width, H/im.height); const w = im.width*r, h = im.height*r;
+  x.fillStyle = '#fff'; x.fillRect(0,0,W,H); x.drawImage(im, (W-w)/2, (H-h)/2.4, w, h); return c.toDataURL('image/jpeg', .78);
+}
+async function logoFromFile(file){
+  const im = await fileToImg(file); const M = 360; const r = Math.min(1, M/Math.max(im.width, im.height));
+  const c = document.createElement('canvas'); c.width = Math.round(im.width*r); c.height = Math.round(im.height*r);
+  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+  return file.type === 'image/png' || file.type === 'image/webp' || file.type === 'image/svg+xml' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', .9);
+}
+const imgCache = {};
+function loadImg(src){ if(!src) return Promise.resolve(null); if(imgCache[src]) return imgCache[src]; return imgCache[src] = new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; }); }
+function gradeBadgeURL(size=200){ // insignia del grado por defecto
+  const c = document.createElement('canvas'); c.width = c.height = size; const x = c.getContext('2d');
+  x.fillStyle = cfg.color || '#C8102E'; x.beginPath(); x.arc(size/2, size/2, size/2, 0, 7); x.fill();
+  x.strokeStyle = '#fff'; x.lineWidth = size*.04; x.beginPath(); x.arc(size/2, size/2, size*.42, 0, 7); x.stroke();
+  x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  const t = (cfg.grado || '?').replace(/\s+/g,''); let fs = size*.36; x.font = `800 ${fs}px "Barlow Condensed", Arial Narrow, sans-serif`;
+  while(x.measureText(t).width > size*.72 && fs > 10){ fs -= 2; x.font = `800 ${fs}px "Barlow Condensed", Arial Narrow, sans-serif`; }
+  x.fillText(t, size/2, size/2 + size*.02); return c.toDataURL('image/png');
+}
+const gradeLogo = () => cfg.logoGrado || gradeBadgeURL();
+const ueLogoHTML = (s=40) => cfg.logoUE ? `<img src="${cfg.logoUE}" alt="" style="width:${s}px;height:${s}px">` : `<span style="color:var(--red)">${I.teacher.replace('<svg','<svg width="26" height="26"')}</span>`;
+
+/* ---------- Asistencia ---------- */
+let curDate = today();
+const dayRec = d => att[d] || (att[d] = {});
+const recOf = (sid, d=curDate) => (att[d] || {})[sid];
+const isOff = d => offDays.includes(d);
+function estadoPorHora(hm){ return hmToMin(hm) > hmToMin(cfg.hora) + Number(cfg.tol || 0) ? 'T' : 'P'; }
+function mark(sid, e, d=curDate, metodo='manual', nota=''){
+  const r = dayRec(d); const prev = r[sid];
+  const h = (e === 'P' || e === 'T') ? (prev && prev.h && (prev.e === 'P' || prev.e === 'T') ? prev.h : (d === today() ? nowHM() : cfg.hora)) : '';
+  r[sid] = {e, h, m:metodo, wa:false, n:nota || ''}; saveAtt();
+}
+function unmark(sid, d=curDate){ if(att[d]){ delete att[d][sid]; if(!Object.keys(att[d]).length) delete att[d]; saveAtt(); } }
+function fillTpl(tpl, s, r, d){
+  return tpl.replace(/\{(\w+)\}/g, (m, k) => ({
+    ue: cfg.ue, grado: cfg.grado, maestro: titleCase(cfg.maestro), estudiante: titleCase(s.nombre), hijo: cap(hijoDe(s)),
+    fecha: fechaLarga(d), hora: r && r.h || '', entrada: cfg.hora
+  })[k] ?? m);
+}
+function msgFor(s, d=curDate){ const r = recOf(s.id, d); if(!r) return ''; return fillTpl(cfg['msg' + r.e] || '', s, r, d); }
+function sendWA(sid, d=curDate){
+  const s = students.find(x => x.id === sid); if(!s) return; const r = recOf(sid, d); if(!r) return;
+  if(!s.tel){ toast('Falta el número de WhatsApp. Puedes elegir el contacto en WhatsApp.'); }
+  openWA(s.tel, msgFor(s, d)); r.wa = true; saveAtt();
+}
+
+/* ---------- Activación y códigos ---------- */
+async function verifyCode(code){
+  code = String(code||'').trim(); const m = code.match(/#c=([^&\s]+)/); if(m) code = m[1];
+  code = code.replace(/\s+/g,'');
+  const [p, s] = code.split('.'); if(!p || !s) throw new Error('El código no tiene el formato correcto.');
+  let okSig = false;
+  try{ const key = await crypto.subtle.importKey('jwk', ADMIN_PUB, {name:'ECDSA', namedCurve:'P-256'}, false, ['verify']);
+    okSig = await crypto.subtle.verify({name:'ECDSA', hash:'SHA-256'}, key, ub64u(s), ub64u(p)); }catch(e){ okSig = false; }
+  if(!okSig) throw new Error('Código inválido. Pide un código nuevo al administrador.');
+  const [id, name, exp] = dec.decode(ub64u(p)).split('|');
+  if(exp && exp !== '0' && exp < today().replace(/-/g,'')) throw new Error('Este código ya venció. Pide uno nuevo al administrador.');
+  return {role:'teacher', id, name, exp, code};
+}
+async function importAdminKey(d){
+  return crypto.subtle.importKey('jwk', {...ADMIN_PUB, d}, {name:'ECDSA', namedCurve:'P-256'}, false, ['sign']);
+}
+async function verifyMaster(txt){
+  const d = String(txt||'').trim().replace(/^AQR-ADMIN-/,'').replace(/\s+/g,'');
+  let ok = false;
+  try{ const k = await importAdminKey(d);
+    const sig = await crypto.subtle.sign({name:'ECDSA', hash:'SHA-256'}, k, enc.encode('prueba'));
+    const pub = await crypto.subtle.importKey('jwk', ADMIN_PUB, {name:'ECDSA', namedCurve:'P-256'}, false, ['verify']);
+    ok = await crypto.subtle.verify({name:'ECDSA', hash:'SHA-256'}, pub, sig, enc.encode('prueba')); }catch(e){ ok = false; }
+  if(!ok) throw new Error('Clave maestra incorrecta.');
+  return {role:'owner', id:'owner', name:'Administrador', key:d};
+}
+async function makeCode(name, exp){
+  const k = await importAdminKey(lic.key); const id = uid(6);
+  const payload = `${id}|${String(name).replace(/\|/g,' ').trim()}|${exp ? exp.replace(/-/g,'') : '0'}`;
+  const sig = await crypto.subtle.sign({name:'ECDSA', hash:'SHA-256'}, k, enc.encode(payload));
+  return {id, code: b64u(enc.encode(payload)) + '.' + b64u(sig)};
+}
+async function checkLicense(){
+  if(!lic) return false;
+  try{
+    if(lic.role === 'owner') await verifyMaster(lic.key); else { const v = await verifyCode(lic.code); lic.exp = v.exp; }
+  }catch(e){ lockout(e.message); return false; }
+  try{ const r = await fetch('revocados.json', {cache:'no-store'}); if(r.ok){ const j = await r.json(); if((j.ids||[]).includes(lic.id)){ lockout('Este código fue desactivado por el administrador.'); return false; } } }catch(e){}
+  return true;
+}
+function lockout(msg){ LS.del('aqr_lic'); lic = null; route = 'welcome'; render(); setTimeout(() => toast(msg), 300); }
+
+/* ---------- Portal de padres: enlace cifrado con el C.I. ---------- */
+async function ciKey(ci, salt){
+  const base = await crypto.subtle.importKey('raw', enc.encode(normCI(ci)), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:60000, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+}
+function reportData(s){
+  const y = String(cfg.gestion || new Date().getFullYear()); const parts = [];
+  Object.keys(att).filter(d => d.startsWith(y) && !isOff(d)).sort().forEach(d => { const r = att[d][s.id]; if(r) parts.push(d.slice(5).replace('-','') + r.e + (r.h || '').replace(':','')); });
+  return {v:1, n:titleCase(s.nombre), g:cfg.grado, u:cfg.ue, c:cfg.ciudad, m:titleCase(cfg.maestro), y, h:cfg.hora, r:parts.join(','), t:Date.now()};
+}
+async function portalLink(s){
+  if(!normCI(s.ci)) throw new Error('Primero registra el C.I. de ' + titleCase(s.nombre) + ' (Estudiantes).');
+  const salt = crypto.getRandomValues(new Uint8Array(12)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, await ciKey(s.ci, salt), enc.encode(JSON.stringify(reportData(s))));
+  const all = new Uint8Array(1 + 12 + 12 + ct.byteLength); all[0] = 1; all.set(salt, 1); all.set(iv, 13); all.set(new Uint8Array(ct), 25);
+  return baseURL() + '#p=' + b64u(all);
+}
+async function openPortalPayload(b, ci){
+  const u = ub64u(b); const salt = u.slice(1,13), iv = u.slice(13,25), ct = u.slice(25);
+  const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv}, await ciKey(ci, salt), ct);
+  return JSON.parse(dec.decode(pt));
+}
+function parseRecs(k){ const out = {}; (k.r ? k.r.split(',') : []).forEach(x => { const md = x.slice(0,4), e = x[4], h = x.slice(5); out[`${k.y}-${md.slice(0,2)}-${md.slice(2)}`] = {e, h: h ? h.slice(0,2) + ':' + h.slice(2) : ''}; }); return out; }
+
+/* ---------- Estadísticas ---------- */
+function monthDays(ym){ // días hábiles (lun-vie) del mes hasta hoy
+  const [y, m] = ym.split('-').map(Number); const out = []; const last = new Date(y, m, 0).getDate(); const t = today();
+  for(let d=1; d<=last; d++){ const dt = new Date(y, m-1, d); const s = ymd(dt); if(s > t) break; if(dt.getDay() > 0 && dt.getDay() < 6) out.push(s); }
+  return out;
+}
+function classDays(ym){ return monthDays(ym).filter(d => !isOff(d) && att[d] && Object.keys(att[d]).length); }
+function statsFor(sid, days){ const c = {P:0,T:0,F:0,L:0}; days.forEach(d => { const r = (att[d]||{})[sid]; if(r) c[r.e]++; }); const tot = c.P + c.T + c.F + c.L; c.pct = tot ? Math.round((c.P + c.T) / tot * 100) : 0; c.tot = tot; return c; }
+
+/* ---------- Carnet (canvas 54 x 85.6 mm) ---------- */
+const CW = 640, CH = 1015;
+function wrapText(x, text, maxW){ const words = String(text).split(/\s+/); const lines = []; let cur = ''; words.forEach(w => { const t = cur ? cur + ' ' + w : w; if(x.measureText(t).width > maxW && cur){ lines.push(cur); cur = w; } else cur = t; }); if(cur) lines.push(cur); return lines; }
+function fitFont(x, text, maxW, size, weight, fam, min=14){ let s = size; do{ x.font = `${weight} ${s}px ${fam}`; if(x.measureText(text).width <= maxW) break; s -= 1; } while(s > min); return s; }
+function roundRect(x, X, Y, W, H, R){ x.beginPath(); x.moveTo(X+R, Y); x.arcTo(X+W, Y, X+W, Y+H, R); x.arcTo(X+W, Y+H, X, Y+H, R); x.arcTo(X, Y+H, X, Y, R); x.arcTo(X, Y, X+W, Y, R); x.closePath(); }
+async function drawCarnet(canvas, s){
+  canvas.width = CW; canvas.height = CH; const x = canvas.getContext('2d'); const col = cfg.color || '#C8102E';
+  const COND = '"Barlow Condensed","Arial Narrow",Arial,sans-serif', BODY = '"Barlow",Arial,sans-serif';
+  try{ await document.fonts.ready; }catch(e){}
+  const [lu, lg, ph] = await Promise.all([loadImg(cfg.logoUE), loadImg(gradeLogo()), loadImg(s.foto)]);
+  x.fillStyle = '#fff'; x.fillRect(0, 0, CW, CH);
+  // franja superior
+  x.fillStyle = col; x.fillRect(0, 0, CW, 14);
+  // logos
+  const L = 128; if(lu){ const r = Math.min(L/lu.width, L/lu.height); x.drawImage(lu, 22 + (L - lu.width*r)/2, 30 + (L - lu.height*r)/2, lu.width*r, lu.height*r); }
+  if(lg){ const r = Math.min(L/lg.width, L/lg.height); x.drawImage(lg, CW - 22 - L + (L - lg.width*r)/2, 30 + (L - lg.height*r)/2, lg.width*r, lg.height*r); }
+  // nombre de la U.E.
+  x.textAlign = 'center'; x.fillStyle = col; x.font = `800 34px ${COND}`;
+  const ueLines = wrapText(x, (cfg.ue || 'Unidad Educativa').toUpperCase(), CW - 2*L - 70).slice(0,3);
+  const ueY = 94 - (ueLines.length - 1) * 17; ueLines.forEach((l, i) => x.fillText(l, CW/2, ueY + i*34));
+  x.fillStyle = '#5c4b4e'; x.font = `600 19px ${BODY}`;
+  if(cfg.nivel) x.fillText(wrapText(x, cfg.nivel, CW - 2*L - 60)[0], CW/2, ueY + ueLines.length*34 + 4);
+  // banda
+  x.fillStyle = col; x.fillRect(0, 186, CW, 58);
+  x.fillStyle = '#fff'; x.font = `800 32px ${COND}`; x.fillText(`CARNET ESTUDIANTIL  ·  ${cfg.gestion}`, CW/2, 226);
+  // foto
+  const PW = 220, PH = 276, PX = (CW - PW)/2, PY = 268;
+  x.fillStyle = col; roundRect(x, PX-7, PY-7, PW+14, PH+14, 18); x.fill();
+  x.save(); roundRect(x, PX, PY, PW, PH, 12); x.clip(); x.fillStyle = '#f1e9ea'; x.fillRect(PX, PY, PW, PH);
+  if(ph){ const r = Math.max(PW/ph.width, PH/ph.height); x.drawImage(ph, PX + (PW - ph.width*r)/2, PY + (PH - ph.height*r)/2, ph.width*r, ph.height*r); }
+  else { x.fillStyle = '#cdbcbf'; x.beginPath(); x.arc(CW/2, PY + 105, 52, 0, 7); x.fill(); x.beginPath(); x.ellipse(CW/2, PY + PH + 10, 100, 110, 0, Math.PI, 0); x.fill(); }
+  x.restore();
+  // nombre del estudiante
+  x.fillStyle = '#231719'; x.font = `800 36px ${COND}`; const nl = wrapText(x, String(s.nombre||'').toUpperCase(), CW - 60).slice(0,2);
+  nl.forEach((l, i) => { fitFont(x, l, CW - 50, 36, 800, COND); x.fillText(l, CW/2, 592 + i*38); });
+  // datos + QR
+  const top = 592 + nl.length*38 + 6, QS = 236, QX = CW - 26 - QS, QY = Math.min(top + 4, CH - 58 - QS - 8);
+  x.textAlign = 'left'; const rows = [['CURSO', cfg.grado], ['C.I.', s.ci || '—'], ['RUDE', s.rude || '—'], ['GESTIÓN', cfg.gestion]];
+  let ry = QY + 30; rows.forEach(([k, v]) => { x.fillStyle = col; x.font = `700 17px ${BODY}`; x.fillText(k, 30, ry); x.fillStyle = '#231719'; fitFont(x, String(v), QX - 44, 28, 700, COND); x.fillText(String(v), 30, ry + 28); ry += 58; });
+  drawQR(x, 'AQR1|' + s.id, QX, QY, QS);
+  // pie
+  x.fillStyle = col; x.fillRect(0, CH - 52, CW, 52); x.fillStyle = '#fff'; x.textAlign = 'center';
+  const pie = [cfg.ciudad, cfg.maestro ? 'Prof. ' + titleCase(cfg.maestro) : ''].filter(Boolean).join('  ·  ');
+  fitFont(x, pie, CW - 40, 21, 600, BODY); x.fillText(pie, CW/2, CH - 19);
+  return canvas;
+}
+function drawQR(x, text, X, Y, S){
+  const q = qrcode(0, 'M'); q.addData(text); q.make(); const n = q.getModuleCount(); const quiet = 2; const cell = S / (n + quiet*2);
+  x.fillStyle = '#fff'; x.fillRect(X, Y, S, S); x.fillStyle = '#000';
+  for(let r=0; r<n; r++) for(let c=0; c<n; c++) if(q.isDark(r, c)) x.fillRect(X + (c+quiet)*cell, Y + (r+quiet)*cell, Math.ceil(cell), Math.ceil(cell));
+}
+
+/* ---------- Instalación ---------- */
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $$('.instbtn').forEach(b => b.hidden = false); });
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+function installUI(){
+  if(isStandalone()) return '';
+  return `<button class="btn block instbtn" onclick="doInstall()">${I.dl} Instalar la app en este celular</button>`;
+}
+async function doInstall(){
+  if(installEvt){ installEvt.prompt(); await installEvt.userChoice; installEvt = null; return; }
+  sheet(`<h3>Instalar AsistQR</h3>${isIOS() ? `<p style="margin:0">En iPhone, abre esta página en <b>Safari</b>, toca el botón <b>Compartir</b> (cuadrado con flecha) y elige <b>“Agregar a inicio”</b>.</p>` : `<p style="margin:0">Abre el menú <b>⋮</b> de Chrome y elige <b>“Instalar aplicación”</b> o <b>“Agregar a la pantalla principal”</b>.</p>`}<button class="btn pri block" onclick="closeSheet()">Entendido</button>`);
+}
+
+/* =========================================================
+   Vistas
+   ========================================================= */
+let route = 'hoy', filter = 'all', stuQuery = '';
+let reportTab = 'mes', repMonth = today().slice(0,7), repStudent = '';
+let portalPending = null, portalKid = null, portalMonth = today().slice(0,7);
+
+function header(){
+  return `<header class="top"><div class="logo">${ueLogoHTML(40)}</div><div class="grow"><div class="t1">${esc(cfg.ue || 'AsistQR')}</div><div class="t2">${esc([cfg.grado, cfg.maestro ? 'Prof. ' + titleCase(cfg.maestro) : ''].filter(Boolean).join(' · ') || 'Control de asistencia con QR')}</div></div><div class="gbadge"><img src="${gradeLogo()}" alt=""></div></header>`;
+}
+function navHTML(){
+  const t = [['hoy','Hoy',I.home],['est','Estudiantes',I.users],['scan','Escanear',I.scan],['rep','Reportes',I.chart],['mas','Más',I.more]];
+  return `<div class="in">${t.map(([k, l, ic]) => k === 'scan' ? `<button class="scan" data-go="scan" aria-label="Escanear"><div class="ic">${ic}</div><span>${l}</span></button>` : `<button class="${route === k || (k === 'mas' && ['mas','car','adm','cfg'].includes(route)) ? 'on' : ''}" data-go="${k}">${ic}<span>${l}</span></button>`).join('')}</div>`;
+}
+function render(){
+  stopScanner();
+  const app = $('#app'), tabs = $('#tabs');
+  if(!lic){
+    tabs.hidden = true;
+    if(route === 'portal' || (route !== 'activar' && (kids.length || portalPending))) { app.innerHTML = vPortal(); bindPortal(); }
+    else if(route === 'activar'){ app.innerHTML = vActivar(); bindActivar(); }
+    else { app.innerHTML = vWelcome(); }
+    window.scrollTo(0,0); return;
+  }
+  if(route === 'portal'){ tabs.hidden = true; app.innerHTML = vPortal(); bindPortal(); return; }
+  tabs.hidden = false; tabs.innerHTML = navHTML();
+  $$('[data-go]', tabs).forEach(b => b.onclick = () => go(b.dataset.go));
+  const views = {hoy:vHoy, est:vEst, scan:vScan, rep:vRep, mas:vMas, car:vCar, adm:vAdm, cfg:vCfg};
+  app.innerHTML = header() + `<main>${(views[route] || vHoy)()}</main>`;
+  const binders = {hoy:bindHoy, est:bindEst, scan:bindScan, rep:bindRep, mas:bindMas, car:bindCar, adm:bindAdm, cfg:bindCfg};
+  (binders[route] || bindHoy)();
+}
+function go(r){ route = r; render(); window.scrollTo(0,0); }
+
+/* ---------- Bienvenida / activación ---------- */
+function vWelcome(){
+  return `<main style="padding-top:calc(20px + env(safe-area-inset-top,0px))">
+  <section class="hero"><img class="qrmark" src="icons/icon-512.png" alt=""><h1>AsistQR</h1><p>Control de asistencia escolar con QR, carnets y avisos a los padres por WhatsApp.</p></section>
+  <button class="choice" onclick="go('activar')"><div class="ci">${I.teacher}</div><div><b>Soy maestro(a)</b><span class="sub">Ingresa con tu código personal de acceso</span></div></button>
+  <button class="choice" onclick="go('portal')"><div class="ci">${I.family}</div><div><b>Soy padre o madre</b><span class="sub">Revisa la asistencia de tu hijo(a) con su C.I.</span></div></button>
+  ${installUI()}
+  <p class="hint" style="text-align:center">Versión ${APP_VERSION}</p></main>`;
+}
+function vActivar(){
+  return `<main style="padding-top:calc(20px + env(safe-area-inset-top,0px))">
+  <div class="row"><button class="iconbtn" onclick="go('welcome')" aria-label="Volver">${I.left}</button><h2>Acceso de maestros</h2></div>
+  <div class="card soft stack"><p style="margin:0">Para usar AsistQR necesitas un <b>código personal</b> que entrega el administrador. Si te enviaron un enlace, solo ábrelo y se activa solo.</p></div>
+  <div class="field"><label for="acCode">Código de acceso</label><textarea id="acCode" placeholder="Pega aquí tu código o enlace" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea></div>
+  <button class="btn pri big block" id="acGo">${I.lock} Activar</button>
+  <p class="hint" id="acErr" style="color:var(--abs);font-weight:600"></p>
+  <p class="hint">El administrador puede pegar aquí su <b>clave maestra</b> (empieza con AQR-ADMIN-).</p></main>`;
+}
+function bindActivar(){
+  $('#acGo').onclick = async () => {
+    const v = $('#acCode').value.trim(); $('#acErr').textContent = '';
+    if(!v){ $('#acErr').textContent = 'Escribe o pega tu código.'; return; }
+    try{ await activate(v); }catch(e){ $('#acErr').textContent = e.message || 'Código inválido.'; }
+  };
+}
+async function activate(v){
+  const l = /^AQR-ADMIN-/.test(v.trim()) ? await verifyMaster(v) : await verifyCode(v);
+  lic = l; LS.set('aqr_lic', lic);
+  try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+  toast(lic.role === 'owner' ? 'Bienvenido, administrador' : `Bienvenido(a), ${lic.name}`);
+  route = cfg.ue ? 'hoy' : 'cfg'; render();
+}
+
+/* ---------- HOY ---------- */
+function vHoy(){
+  const recs = att[curDate] || {}; const off = isOff(curDate);
+  const c = {P:0,T:0,F:0,L:0,N:0}; students.forEach(s => { const r = recs[s.id]; c[r ? r.e : 'N']++; });
+  const pend = students.filter(s => recs[s.id] && !recs[s.id].wa).length;
+  const list = students.filter(s => { const r = recs[s.id]; const e = r ? r.e : 'N'; return filter === 'all' || filter === e || (filter === 'P' && e === 'P'); });
+  const isToday = curDate === today();
+  return `
+  <div class="datebar"><button class="iconbtn" data-d="-1" aria-label="Día anterior">${I.left}</button><div class="d"><b>${esc(isToday ? 'Hoy' : cap(DIAS[parseD(curDate).getDay()]))}</b><span class="sub">${esc(fechaLarga(curDate))} · Entrada ${esc(cfg.hora)}</span></div><button class="iconbtn" data-d="1" aria-label="Día siguiente" ${isToday ? 'disabled style="opacity:.35"' : ''}>${I.right}</button></div>
+  ${!students.length ? `<div class="card soft empty"><b>Aún no hay estudiantes</b>Agrega tu lista para empezar a marcar asistencia.<div style="margin-top:12px"><button class="btn pri" onclick="go('est')">${I.plus} Agregar estudiantes</button></div></div>` : off ? `<div class="banner">Día marcado sin clases (feriado o descanso). No cuenta en los reportes. <button class="btn sm" id="offTg" style="margin-top:8px">Quitar marca</button></div>` : `
+  <div class="stats">${[['P','Presentes',c.P],['T','Tarde',c.T],['F','Faltas',c.F],['N','Sin marcar',c.N]].map(([k,l,n]) => `<div class="stat ${k} ${filter===k?'sel':''}" data-f="${k}"><b>${n}</b><span>${l}</span></div>`).join('')}</div>
+  ${isToday ? `<button class="btn pri big block" onclick="go('scan')">${I.scan} Escanear carnets</button>` : ''}
+  <div class="row">${pend ? `<button class="btn wa" id="waAll" style="flex:1">${I.wa} Avisos pendientes (${pend})</button>` : ''}${c.N ? `<button class="btn" id="closeDay" style="flex:1">Cerrar día: faltas (${c.N})</button>` : ''}</div>
+  <div class="row between"><div class="chips">${[['all','Todos'],['N','Sin marcar'],['P','Presentes'],['T','Tarde'],['F','Faltas'],['L','Licencias']].map(([k,l]) => `<button class="chip ${filter===k?'on':''}" data-f="${k}">${l}</button>`).join('')}</div></div>
+  ${list.length ? `<div class="list">${list.map(s => rowHoy(s, recs[s.id])).join('')}</div>` : `<div class="empty">Nadie en este filtro.</div>`}
+  <button class="btn ghost sm" id="offTg" style="align-self:center">Marcar este día sin clases</button>`}`;
+}
+function avatar(s){ return `<div class="av">${s.foto ? `<img src="${s.foto}" alt="">` : esc(initials(s.nombre))}</div>`; }
+function rowHoy(s, r){
+  const pill = r ? `<span class="pill ${r.e}">${EST[r.e]}${r.h ? ' · ' + r.h : ''}</span>` : `<span class="pill N">Sin marcar</span>`;
+  const wa = r ? `<button class="wab ${r.wa ? 'done' : ''}" data-wa="${s.id}" aria-label="Enviar WhatsApp">${r.wa ? I.check : I.wa}</button>` : '';
+  return `<div class="item" data-s="${s.id}">${avatar(s)}<div class="nm"><b>${esc(titleCase(s.nombre))}</b>${pill}</div>${wa}</div>`;
+}
+function bindHoy(){
+  $$('[data-d]').forEach(b => b.onclick = () => { const d = parseD(curDate); do{ d.setDate(d.getDate() + Number(b.dataset.d)); } while(d.getDay() === 0 || d.getDay() === 6); const s = ymd(d); if(s > today()) return; curDate = s; render(); });
+  $$('[data-f]').forEach(b => b.onclick = () => { filter = filter === b.dataset.f && b.classList.contains('stat') ? 'all' : b.dataset.f; render(); });
+  $$('.item[data-s]').forEach(el => el.onclick = e => { if(e.target.closest('[data-wa]')) return; markSheet(el.dataset.s); });
+  $$('[data-wa]').forEach(b => b.onclick = e => { e.stopPropagation(); sendWA(b.dataset.wa); render(); });
+  const off = $('#offTg'); if(off) off.onclick = () => { if(isOff(curDate)) offDays = offDays.filter(d => d !== curDate); else offDays.push(curDate); saveOff(); render(); };
+  const cd = $('#closeDay'); if(cd) cd.onclick = () => confirmSheet('Cerrar el día', `Se marcará <b>Falta</b> a los estudiantes sin registro del ${esc(fechaLarga(curDate))}.`, 'Marcar faltas', () => { students.forEach(s => { if(!recOf(s.id)) mark(s.id, 'F'); }); toast('Faltas registradas'); filter = 'F'; render(); });
+  const wa = $('#waAll'); if(wa) wa.onclick = waQueue;
+}
+function waQueue(){
+  const recs = att[curDate] || {};
+  const pend = students.filter(s => recs[s.id] && !recs[s.id].wa);
+  sheet(`<h3>Avisos por WhatsApp</h3><p class="hint" style="margin:0">Toca cada botón: se abre WhatsApp con el mensaje listo; solo presiona <b>Enviar</b> y vuelve aquí.</p>
+  <div class="list">${pend.map(s => `<div class="item" style="cursor:default">${avatar(s)}<div class="nm"><b>${esc(titleCase(s.nombre))}</b><span class="pill ${recs[s.id].e}">${EST[recs[s.id].e]}</span> <small>${s.tel ? esc(s.tel) : 'sin número'}</small></div><button class="wab" data-q="${s.id}">${I.wa}</button></div>`).join('')}</div>
+  <button class="btn block" onclick="closeSheet();render()">Listo</button>`, sh => {
+    $$('[data-q]', sh).forEach(b => b.onclick = () => { sendWA(b.dataset.q); b.classList.add('done'); b.innerHTML = I.check; });
+  });
+}
+function markSheet(sid){
+  const s = students.find(x => x.id === sid); const r = recOf(sid);
+  sheet(`<div class="row">${avatar(s)}<div class="nm" style="flex:1;min-width:0"><h3 style="color:var(--ink)">${esc(titleCase(s.nombre))}</h3><span class="sub">${esc(fechaLarga(curDate))}${r && r.h ? ' · ' + r.h : ''}</span></div></div>
+  <div class="estbtns">${['P','T','F','L'].map(k => `<button class="btn ${k} ${r && r.e === k ? 'on' : ''}" data-e="${k}">${EST[k]}</button>`).join('')}</div>
+  <div class="field"><label for="mkH">Hora de llegada</label><input id="mkH" type="time" value="${esc(r && r.h || (curDate === today() ? nowHM() : cfg.hora))}"></div>
+  <div class="field"><label for="mkN">Nota (licencia u observación)</label><input id="mkN" value="${esc(r && r.n || '')}" placeholder="Ej.: cita médica"></div>
+  <div class="grid2">${r ? `<button class="btn" id="mkDel">Quitar registro</button>` : '<span></span>'}<button class="btn wa" id="mkWA" ${r ? '' : 'disabled'}>${I.wa} WhatsApp</button></div>`, sh => {
+    $$('[data-e]', sh).forEach(b => b.onclick = () => {
+      const e = b.dataset.e; mark(sid, e, curDate, 'manual', $('#mkN', sh).value);
+      const rr = recOf(sid); if(e === 'P' || e === 'T'){ rr.h = $('#mkH', sh).value || rr.h; if(b.dataset.e === 'P' || b.dataset.e === 'T') rr.e = e; saveAtt(); }
+      closeSheet(); render(); toast(`${titleCase(s.nombre).split(' ').slice(-2).join(' ')}: ${EST[e]}`);
+    });
+    const d = $('#mkDel', sh); if(d) d.onclick = () => { unmark(sid); closeSheet(); render(); };
+    $('#mkWA', sh).onclick = () => { sendWA(sid); closeSheet(); render(); };
+  });
+}
+
+/* ---------- ESCÁNER ---------- */
+let stream = null, scanTimer = null, detector = null, paused = false, lastCode = '', lastAt = 0, autoT = null, audioCtx = null;
+function vScan(){
+  return `<div class="row between"><h2>Escanear</h2><span class="sub">${esc(fechaLarga(today()))}</span></div>
+  <div class="scanbox" id="sbox"><video id="vid" playsinline muted></video><div class="frame"><i></i><i></i><i></i><i></i></div><div class="laser"></div><div class="msg" id="smsg">Apunta al código QR del carnet</div>
+  <div class="off" id="soff"><div class="stack" style="align-items:center"><p style="margin:0">La cámara está apagada.</p><button class="btn pri" id="camOn">${I.cam} Encender cámara</button></div></div><div id="sres"></div></div>
+  <div class="toggles"><label class="tog"><input type="checkbox" id="tgAuto" ${cfg.auto ? 'checked' : ''}> Autocierre</label><button class="tog" id="tgFlip">${I.flip.replace('<svg','<svg width="18" height="18"')} ${cfg.cam === 'user' ? 'Cámara frontal' : 'Cámara trasera'}</button><button class="tog" id="tgSearch">${I.search.replace('<svg','<svg width="18" height="18"')} Sin carnet</button></div>
+  <div class="card soft"><span class="hint">Entrada: <b>${esc(cfg.hora)}</b>${Number(cfg.tol) ? ` + ${cfg.tol} min de tolerancia` : ''}. Después de esa hora se registra como <b>Tarde</b>. Con autocierre la pantalla vuelve sola al escáner (modo tablet fija).</span></div>
+  <div id="lastList"></div>`;
+}
+function bindScan(){
+  $('#camOn').onclick = startScanner;
+  $('#tgAuto').onchange = e => { cfg.auto = e.target.checked; saveCfg(); };
+  $('#tgFlip').onclick = () => { cfg.cam = cfg.cam === 'user' ? 'environment' : 'user'; saveCfg(); render(); setTimeout(startScanner, 50); };
+  $('#tgSearch').onclick = searchSheet;
+  renderLast();
+  startScanner();
+}
+function renderLast(){
+  const el = $('#lastList'); if(!el) return; const recs = att[today()] || {};
+  const last = Object.entries(recs).filter(([, r]) => r.m === 'qr').sort((a, b) => (b[1].h || '').localeCompare(a[1].h || '')).slice(0, 6);
+  el.innerHTML = last.length ? `<h3 style="margin-bottom:8px">Últimos registros</h3><div class="list">${last.map(([sid, r]) => { const s = students.find(x => x.id === sid); return s ? rowHoy(s, r) : ''; }).join('')}</div>` : '';
+  $$('[data-wa]', el).forEach(b => b.onclick = e => { e.stopPropagation(); sendWA(b.dataset.wa, today()); renderLast(); });
+  $$('.item[data-s]', el).forEach(it => it.onclick = e => { if(e.target.closest('[data-wa]')) return; curDate = today(); markSheet(it.dataset.s); });
+}
+async function startScanner(){
+  const off = $('#soff'); if(!off) return;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ $('#smsg').textContent = 'Este navegador no permite usar la cámara. Abre la app con https en Chrome o Safari.'; return; }
+  try{
+    stopScanner();
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:cfg.cam}, width:{ideal:1280}, height:{ideal:720}}, audio:false});
+    const v = $('#vid'); if(!v){ stopScanner(); return; }
+    v.srcObject = stream; await v.play(); off.hidden = true; paused = false;
+    try{ if('BarcodeDetector' in window){ const f = await BarcodeDetector.getSupportedFormats(); detector = f.includes('qr_code') ? new BarcodeDetector({formats:['qr_code']}) : null; } }catch(e){ detector = null; }
+    scanLoop();
+  }catch(e){ off.hidden = false; $('#smsg').textContent = 'No se pudo abrir la cámara. Revisa que la app tenga permiso de cámara.'; }
+}
+function stopScanner(){ clearTimeout(scanTimer); clearTimeout(autoT); scanTimer = null; if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; } }
+const scanCanvas = document.createElement('canvas'); const scanCtx = scanCanvas.getContext('2d', {willReadFrequently:true});
+async function scanLoop(){
+  if(!stream) return; const v = $('#vid');
+  if(v && !paused && v.readyState >= 2 && v.videoWidth){
+    let code = null;
+    try{
+      if(detector){ const r = await detector.detect(v); if(r.length) code = r[0].rawValue; }
+      else{ const w = 640, h = Math.round(v.videoHeight * 640 / v.videoWidth); scanCanvas.width = w; scanCanvas.height = h; scanCtx.drawImage(v, 0, 0, w, h); const r = jsQR(scanCtx.getImageData(0, 0, w, h).data, w, h, {inversionAttempts:'dontInvert'}); if(r) code = r.data; }
+    }catch(e){ detector = null; }
+    if(code && !(code === lastCode && Date.now() - lastAt < 4000)){ lastCode = code; lastAt = Date.now(); onCode(code); }
+  }
+  scanTimer = setTimeout(scanLoop, detector ? 150 : 110);
+}
+function beep(ok){ try{ audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.frequency.value = ok ? 1046 : 220; o.type = ok ? 'sine' : 'square'; g.gain.value = .12; o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + (ok ? .14 : .3)); }catch(e){} try{ navigator.vibrate && navigator.vibrate(ok ? 80 : [60,60,60]); }catch(e){} }
+function findByCode(code){
+  const m = String(code).match(/^AQR1\|([a-z0-9]+)/i); if(m) return students.find(s => s.id === m[1]);
+  const n = normCI(code); return n ? students.find(s => normCI(s.ci) === n || normCI(s.rude) === n) : null;
+}
+function onCode(code){
+  const s = findByCode(code);
+  if(!s){ beep(false); showResult({cls:'X', title:'Carnet no reconocido', sub:'Este código no pertenece a tu lista de estudiantes.'}); return; }
+  registerArrival(s, 'qr');
+}
+function registerArrival(s, metodo){
+  const d = today(); const prev = recOf(s.id, d);
+  if(prev && (prev.e === 'P' || prev.e === 'T')){ beep(false); showResult({cls:prev.e, s, title:'Ya registrado', sub:`${EST[prev.e]} a las ${prev.h}`}); return; }
+  const h = nowHM(); const e = estadoPorHora(h); dayRec(d)[s.id] = {e, h, m:metodo, wa:false, n:''}; saveAtt();
+  beep(true); showResult({cls:e, s, title:e === 'P' ? 'Entrada registrada' : 'Llegó tarde', sub:`${cfg.grado} · ${h}`, wa:true});
+  renderLast();
+}
+function showResult({cls, s, title, sub, wa}){
+  const box = $('#sres'); if(!box){ toast(title + (s ? ': ' + titleCase(s.nombre) : '')); return; }
+  paused = true; clearTimeout(autoT);
+  box.innerHTML = `<div class="result ${cls}">${s ? (s.foto ? `<img class="ph" src="${s.foto}" alt="">` : `<div class="ph" style="display:grid;place-items:center;font:800 44px var(--display);color:var(--red-dk)">${esc(initials(s.nombre))}</div>`) : `<div class="ph" style="display:grid;place-items:center">${I.lock}</div>`}
+    <div class="st">${esc(title)}</div>${s ? `<div class="nm">${esc(titleCase(s.nombre))}</div>` : ''}<div class="sub">${esc(sub || '')}</div>
+    <div class="row" style="justify-content:center">${wa && s ? `<button class="btn wa" id="rWA">${I.wa} Avisar</button>` : ''}<button class="btn dark" id="rNext">Siguiente</button></div>${cfg.auto ? '<div class="bar" id="rBar"></div>' : ''}</div>`;
+  const next = () => { clearTimeout(autoT); box.innerHTML = ''; paused = false; };
+  $('#rNext').onclick = next;
+  const w = $('#rWA'); if(w) w.onclick = () => { clearTimeout(autoT); sendWA(s.id, today()); renderLast(); next(); };
+  if(cfg.auto){ const ms = Number(cfg.autoMs) || 2500; const bar = $('#rBar'); bar.style.width = '100%'; bar.style.transition = `width ${ms}ms linear`; requestAnimationFrame(() => requestAnimationFrame(() => bar.style.width = '0%')); autoT = setTimeout(next, ms); }
+}
+function searchSheet(){
+  sheet(`<h3>Registrar sin carnet</h3><div class="search field"><span>${I.search}</span><input id="sq" placeholder="Buscar por nombre o C.I." autocomplete="off"></div><div class="list" id="sqList"></div>`, sh => {
+    const draw = () => { const q = $('#sq', sh).value.toLowerCase().trim(); const l = students.filter(s => !q || s.nombre.toLowerCase().includes(q) || String(s.ci||'').includes(q)).slice(0, 40);
+      $('#sqList', sh).innerHTML = l.map(s => { const r = recOf(s.id, today()); return `<div class="item" data-p="${s.id}">${avatar(s)}<div class="nm"><b>${esc(titleCase(s.nombre))}</b>${r ? `<span class="pill ${r.e}">${EST[r.e]} ${r.h || ''}</span>` : '<small>Toca para registrar entrada</small>'}</div></div>`; }).join('') || '<div class="empty">Sin resultados</div>';
+      $$('[data-p]', sh).forEach(it => it.onclick = () => { const s = students.find(x => x.id === it.dataset.p); closeSheet(); registerArrival(s, 'manual'); });
+    };
+    $('#sq', sh).oninput = draw; draw(); setTimeout(() => $('#sq', sh).focus(), 100);
+  });
+}
+
+/* ---------- ESTUDIANTES ---------- */
+function vEst(){
+  const l = students.filter(s => !stuQuery || s.nombre.toLowerCase().includes(stuQuery) || String(s.ci||'').includes(stuQuery));
+  const sinTel = students.filter(s => !s.tel).length, sinCI = students.filter(s => !s.ci).length;
+  return `<div class="row between"><h2>Estudiantes <span class="sub num">(${students.length})</span></h2><button class="btn pri sm" id="addS">${I.plus} Nuevo</button></div>
+  ${students.length && (sinTel || sinCI) ? `<div class="banner" style="font-weight:500">${sinCI ? `<b>${sinCI}</b> sin C.I. ` : ''}${sinCI && sinTel ? '· ' : ''}${sinTel ? `<b>${sinTel}</b> sin WhatsApp del tutor` : ''}. Toca un estudiante para completar sus datos.</div>` : ''}
+  <div class="search field"><span>${I.search}</span><input id="stq" placeholder="Buscar" value="${esc(stuQuery)}" autocomplete="off"></div>
+  ${l.length ? `<div class="list">${l.map((s, i) => `<div class="item" data-s="${s.id}">${avatar(s)}<div class="nm"><b>${esc(titleCase(s.nombre))}</b><small>${s.ci ? 'C.I. ' + esc(s.ci) : 'Sin C.I.'} · ${s.tel ? esc(s.tel) : 'sin WhatsApp'}</small></div><span class="hint num">${students.indexOf(s) + 1}</span></div>`).join('')}</div>` : `<div class="card soft empty"><b>Lista vacía</b>Agrega estudiantes uno por uno o pega tu lista desde Excel.</div>`}
+  <div class="grid2"><button class="btn" id="pasteL">Pegar lista desde Excel</button><button class="btn" onclick="go('car')">${I.card} Carnets</button></div>`;
+}
+function bindEst(){
+  $('#addS').onclick = () => editStudent(null);
+  $('#pasteL').onclick = pasteList;
+  const q = $('#stq'); q.oninput = () => { stuQuery = q.value.toLowerCase().trim(); const pos = q.selectionStart; render(); const n = $('#stq'); n.focus(); n.setSelectionRange(pos, pos); };
+  $$('.item[data-s]').forEach(el => el.onclick = () => editStudent(el.dataset.s));
+}
+function editStudent(sid){
+  const s = sid ? students.find(x => x.id === sid) : {id:uid(8), nombre:'', ci:'', rude:'', genero:'', nac:'', tutor:'', tel:'', foto:''};
+  let foto = s.foto;
+  sheet(`<h3>${sid ? 'Editar estudiante' : 'Nuevo estudiante'}</h3>
+  <div class="row"><div class="av" id="fPrev" style="width:84px;height:112px;border-radius:12px;font-size:28px">${foto ? `<img src="${foto}" alt="">` : esc(initials(s.nombre) || '+')}</div>
+  <div class="stack" style="flex:1"><label class="btn sm">${I.cam} Tomar foto<input type="file" accept="image/*" capture="user" hidden id="fCam"></label><label class="btn sm">Elegir de galería<input type="file" accept="image/*" hidden id="fGal"></label>${foto ? '<button class="btn sm ghost" id="fDel">Quitar foto</button>' : ''}</div></div>
+  <div class="field"><label for="eN">Apellidos y nombres</label><input id="eN" value="${esc(s.nombre)}" autocapitalize="characters"></div>
+  <div class="grid2"><div class="field"><label for="eCI">C.I.</label><input id="eCI" value="${esc(s.ci)}" inputmode="text"></div><div class="field"><label for="eG">Género</label><select id="eG"><option value="">—</option><option value="F" ${s.genero==='F'?'selected':''}>Femenino</option><option value="M" ${s.genero==='M'?'selected':''}>Masculino</option></select></div></div>
+  <div class="field"><label for="eR">Código RUDE</label><input id="eR" value="${esc(s.rude)}" inputmode="numeric"></div>
+  <div class="field"><label for="eNac">Fecha de nacimiento</label><input id="eNac" type="date" value="${esc(s.nac)}"></div>
+  <div class="field"><label for="eT">Padre, madre o tutor</label><input id="eT" value="${esc(s.tutor)}"></div>
+  <div class="field"><label for="eW">WhatsApp del tutor</label><input id="eW" value="${esc(s.tel)}" inputmode="tel" placeholder="Ej.: 71234567"></div>
+  <div class="grid2">${sid ? '<button class="btn" id="eDel">Eliminar</button>' : '<button class="btn" onclick="closeSheet()">Cancelar</button>'}<button class="btn pri" id="eSave">Guardar</button></div>`, sh => {
+    const setF = async f => { if(!f) return; try{ foto = await photoFromFile(f); $('#fPrev', sh).innerHTML = `<img src="${foto}" alt="">`; }catch(e){ toast('No se pudo leer la imagen'); } };
+    $('#fCam', sh).onchange = e => setF(e.target.files[0]); $('#fGal', sh).onchange = e => setF(e.target.files[0]);
+    const fd = $('#fDel', sh); if(fd) fd.onclick = () => { foto = ''; $('#fPrev', sh).textContent = initials(s.nombre); fd.remove(); };
+    $('#eSave', sh).onclick = () => {
+      const n = $('#eN', sh).value.trim(); if(!n){ toast('Escribe el nombre'); return; }
+      Object.assign(s, {nombre:n.toUpperCase(), ci:$('#eCI', sh).value.trim(), rude:$('#eR', sh).value.trim(), genero:$('#eG', sh).value, nac:$('#eNac', sh).value, tutor:$('#eT', sh).value.trim(), tel:$('#eW', sh).value.trim(), foto});
+      if(!sid) students.push(s);
+      students.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+      if(saveStudents()){ closeSheet(); render(); toast('Guardado'); }
+    };
+    const d = $('#eDel', sh); if(d) d.onclick = () => confirmSheet('Eliminar estudiante', `¿Eliminar a <b>${esc(titleCase(s.nombre))}</b>? Sus registros de asistencia también se ocultarán.`, 'Eliminar', () => { students = students.filter(x => x.id !== sid); saveStudents(); render(); }, true);
+  });
+}
+function pasteList(){
+  sheet(`<h3>Pegar lista</h3><p class="hint" style="margin:0">Copia las columnas desde Excel y pégalas aquí, una fila por estudiante, en este orden:<br><b>Apellidos y nombres · C.I. · RUDE · WhatsApp · Género (M/F)</b>. Solo el nombre es obligatorio.</p>
+  <div class="field"><textarea id="pl" style="min-height:180px" placeholder="CADIMA COTAÑA NAYDA NAYARA&#9;1234567&#9;8129...&#9;71234567&#9;F"></textarea></div>
+  <button class="btn pri block" id="plGo">Agregar a la lista</button>`, sh => {
+    $('#plGo', sh).onclick = () => {
+      const lines = $('#pl', sh).value.split(/\r?\n/).map(l => l.trim()).filter(Boolean); let n = 0;
+      lines.forEach(l => { const c = l.split(/\t|;/).map(x => x.trim()); const nombre = (c[0]||'').replace(/^\d+[\.\)]?\s+/, '').toUpperCase(); if(!nombre || students.some(s => s.nombre === nombre)) return;
+        students.push({id:uid(8), nombre, ci:c[1]||'', rude:c[2]||'', tel:c[3]||'', genero:/^f/i.test(c[4]||'') ? 'F' : /^m/i.test(c[4]||'') ? 'M' : '', nac:'', tutor:'', foto:''}); n++; });
+      students.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')); saveStudents(); closeSheet(); render(); toast(`${n} estudiantes agregados`);
+    };
+  });
+}
+
+/* ---------- CARNETS ---------- */
+let carSel = null;
+function vCar(){
+  if(!carSel) carSel = new Set(students.map(s => s.id));
+  return `<div class="row"><button class="iconbtn" onclick="go('mas')" aria-label="Volver">${I.left}</button><h2>Carnets</h2></div>
+  ${!students.length ? `<div class="card soft empty"><b>Sin estudiantes</b>Primero agrega tu lista.</div>` : `
+  <p class="hint" style="margin:0">Tamaño credencial (5,4 × 8,6 cm). Se imprimen <b>9 por hoja carta</b>; desde el celular elige “Guardar como PDF” para imprimir después. Los logos, colores y textos se cambian en <a href="#" onclick="go('cfg');return false">Configuración</a>.</p>
+  <div class="row"><button class="btn pri" id="cPrint" style="flex:1">${I.print} Imprimir / PDF (<span id="cN">${carSel.size}</span>)</button><button class="btn" id="cAll">${carSel.size === students.length ? 'Ninguno' : 'Todos'}</button></div>
+  <div class="cgrid">${students.map(s => `<figure><canvas data-c="${s.id}" width="320" height="507" aria-label="Carnet de ${esc(titleCase(s.nombre))}"></canvas><label><input type="checkbox" data-sel="${s.id}" ${carSel.has(s.id) ? 'checked' : ''}> ${esc(titleCase(s.nombre).split(' ').slice(-2).join(' '))}</label><button class="btn sm" data-png="${s.id}">${I.dl} PNG</button></figure>`).join('')}</div>`}`;
+}
+function bindCar(){
+  if(!students.length) return;
+  (async () => { for(const c of $$('canvas[data-c]')){ const s = students.find(x => x.id === c.dataset.c); if(route !== 'car') return; await drawCarnet(c, s); } })();
+  $$('[data-sel]').forEach(b => b.onchange = () => { b.checked ? carSel.add(b.dataset.sel) : carSel.delete(b.dataset.sel); $('#cN').textContent = carSel.size; });
+  $('#cAll').onclick = () => { carSel = carSel.size === students.length ? new Set() : new Set(students.map(s => s.id)); render(); };
+  $$('[data-png]').forEach(b => b.onclick = async () => { const s = students.find(x => x.id === b.dataset.png); const c = await drawCarnet(document.createElement('canvas'), s); c.toBlob(bl => shareOrDownload(bl, `Carnet_${s.nombre.replace(/\s+/g,'_')}.png`), 'image/png'); });
+  $('#cPrint').onclick = printCarnets;
+}
+async function shareOrDownload(blob, name){
+  const file = new File([blob], name, {type:blob.type});
+  if(navigator.canShare && navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file], title:name}); return; }catch(e){ if(e.name === 'AbortError') return; } }
+  downloadBlob(blob, name);
+}
+async function printCarnets(){
+  const sel = students.filter(s => carSel.has(s.id)); if(!sel.length){ toast('Selecciona al menos un carnet'); return; }
+  toast('Preparando carnets…'); const urls = [];
+  for(const s of sel){ const c = await drawCarnet(document.createElement('canvas'), s); urls.push(c.toDataURL('image/jpeg', .93)); }
+  let html = ''; for(let i=0; i<urls.length; i+=9) html += `<div class="psheet">${urls.slice(i, i+9).map(u => `<img src="${u}" alt="">`).join('')}</div>`;
+  doPrint(html, '@page{size:letter portrait;margin:8mm}');
+}
+function doPrint(html, pageCss){
+  const p = $('#print'); p.innerHTML = `<style>${pageCss}</style>` + html;
+  const imgs = $$('img', p); Promise.all(imgs.map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => setTimeout(() => window.print(), 150));
+}
+
+/* ---------- REPORTES ---------- */
+function vRep(){
+  const days = classDays(repMonth); const [y, m] = repMonth.split('-').map(Number);
+  let body = '';
+  if(reportTab === 'mes'){
+    const rows = students.map((s, i) => { const st = statsFor(s.id, days); return `<tr><td class="n">${i+1}. ${esc(titleCase(s.nombre))}</td>${days.map(d => { const r = (att[d]||{})[s.id]; return `<td class="${r ? 'c' + r.e : ''}">${r ? r.e : '·'}</td>`; }).join('')}<td class="cP">${st.P}</td><td class="cT">${st.T}</td><td class="cF">${st.F}</td><td class="cL">${st.L}</td><td><b>${st.tot ? st.pct + '%' : '—'}</b></td></tr>`; }).join('');
+    const tot = days.length; const avg = students.length && tot ? Math.round(students.reduce((a, s) => a + statsFor(s.id, days).pct, 0) / students.length) : 0;
+    body = `<div class="grid2"><div class="card soft"><span class="hint">Días con clases registradas</span><div style="font:800 30px var(--display)" class="num">${tot}</div></div><div class="card soft"><span class="hint">Asistencia promedio</span><div style="font:800 30px var(--display)" class="num">${tot ? avg + '%' : '—'}</div></div></div>
+    ${tot ? `<div class="tablewrap"><table class="month"><thead><tr><th class="n">Estudiante</th>${days.map(d => `<th>${Number(d.slice(8))}</th>`).join('')}<th>P</th><th>T</th><th>F</th><th>L</th><th>%</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="legend"><span class="pill P">P Presente</span><span class="pill T">T Tarde</span><span class="pill F">F Falta</span><span class="pill L">L Licencia</span></div>` : `<div class="card soft empty"><b>Sin registros en ${MESES[m-1]}</b>Los días aparecen aquí cuando marcas asistencia.</div>`}
+    <div class="grid2"><button class="btn" id="xls" ${tot ? '' : 'disabled'}>${I.dl} Excel</button><button class="btn" id="pdf" ${tot ? '' : 'disabled'}>${I.print} PDF</button></div>
+    <button class="btn wa block" id="waMonth" ${tot ? '' : 'disabled'}>${I.wa} Enviar resumen del mes a cada padre</button>`;
+  } else {
+    const s = students.find(x => x.id === repStudent) || students[0];
+    if(s){ repStudent = s.id; const st = statsFor(s.id, days);
+      body = `<div class="field"><label for="rs">Estudiante</label><select id="rs">${students.map(x => `<option value="${x.id}" ${x.id === s.id ? 'selected' : ''}>${esc(titleCase(x.nombre))}</option>`).join('')}</select></div>
+      <div class="stats">${['P','T','F','L'].map(k => `<div class="stat ${k === 'L' ? 'N' : k}" style="${k === 'L' ? 'background:var(--lic-bg);color:var(--lic)' : ''}"><b>${st[k]}</b><span>${EST[k]}</span></div>`).join('')}</div>
+      <div class="card"><div class="row between" style="margin-bottom:10px"><b>${cap(MESES[m-1])} ${y}</b><span class="pill ${st.pct >= 85 ? 'P' : st.pct >= 70 ? 'T' : 'F'}">${st.tot ? st.pct + '% asistencia' : 'sin datos'}</span></div>${calHTML(repMonth, d => isOff(d) ? null : (att[d]||{})[s.id])}</div>
+      <button class="btn wa block" id="waOne">${I.wa} Enviar resumen y enlace del portal</button>
+      <button class="btn block" id="cpLink">${I.link} Copiar enlace del portal de padres</button>
+      <p class="hint" style="margin:0">El padre abre el enlace y escribe el <b>C.I. del estudiante</b> para ver su calendario de asistencia de toda la gestión.</p>`;
+    } else body = `<div class="card soft empty"><b>Sin estudiantes</b></div>`;
+  }
+  return `<div class="row between"><h2>Reportes</h2><input type="month" id="rm" value="${repMonth}" max="${today().slice(0,7)}" class="btn sm" style="min-height:40px"></div>
+  <div class="chips"><button class="chip ${reportTab==='mes'?'on':''}" data-t="mes">Resumen del mes</button><button class="chip ${reportTab==='est'?'on':''}" data-t="est">Por estudiante</button></div>${body}`;
+}
+function calHTML(ym, getRec){
+  const [y, m] = ym.split('-').map(Number); const first = new Date(y, m-1, 1); const last = new Date(y, m, 0).getDate();
+  let cells = ['Lun','Mar','Mié','Jue','Vie'].map(d => `<div class="h">${d}</div>`).join('');
+  let lead = (first.getDay() + 6) % 7; if(lead > 4) lead = 0; else for(let i=0; i<lead; i++) cells += '<div class="c x"></div>';
+  for(let d=1; d<=last; d++){ const dt = new Date(y, m-1, d); if(dt.getDay() === 0 || dt.getDay() === 6) continue; const r = getRec(ymd(dt)); cells += `<div class="c ${r ? r.e : ''}">${d}${r ? `<small>${r.h || EST[r.e]}</small>` : ''}</div>`; }
+  return `<div class="cal">${cells}</div>`;
+}
+function bindRep(){
+  $('#rm').onchange = e => { if(e.target.value){ repMonth = e.target.value; render(); } };
+  $$('[data-t]').forEach(b => b.onclick = () => { reportTab = b.dataset.t; render(); });
+  const x = $('#xls'); if(x) x.onclick = exportXLS;
+  const p = $('#pdf'); if(p) p.onclick = printMonth;
+  const wm = $('#waMonth'); if(wm) wm.onclick = waMonthQueue;
+  const rs = $('#rs'); if(rs) rs.onchange = () => { repStudent = rs.value; render(); };
+  const w1 = $('#waOne'); if(w1) w1.onclick = () => sendSummary(students.find(s => s.id === repStudent));
+  const cl = $('#cpLink'); if(cl) cl.onclick = async () => { try{ copyText(await portalLink(students.find(s => s.id === repStudent))); }catch(e){ toast(e.message); } };
+}
+async function summaryText(s){
+  const days = classDays(repMonth); const st = statsFor(s.id, days); const [y, m] = repMonth.split('-').map(Number);
+  let link = ''; try{ link = await portalLink(s); }catch(e){}
+  return `📊 *Resumen de asistencia – ${cap(MESES[m-1])} ${y}*\n${cfg.ue} – ${cfg.grado}\nEstudiante: *${titleCase(s.nombre)}*\n\n✅ Presente: ${st.P}\n⏰ Tarde: ${st.T}\n❌ Faltas: ${st.F}\n📝 Licencias: ${st.L}\nAsistencia: *${st.tot ? st.pct + '%' : '—'}*` +
+    (link ? `\n\nVea el calendario completo en el portal de padres (ingrese con el C.I. de ${hijoDe(s)}):\n${link}` : '') + `\n\n_Prof. ${titleCase(cfg.maestro)}_`;
+}
+async function sendSummary(s){ if(!s) return; if(!normCI(s.ci)) toast('Sin C.I.: el mensaje irá sin enlace al portal'); openWA(s.tel, await summaryText(s)); }
+function waMonthQueue(){
+  sheet(`<h3>Resúmenes del mes</h3><p class="hint" style="margin:0">Toca cada botón para abrir WhatsApp con el resumen de ese estudiante.</p>
+  <div class="list">${students.map(s => `<div class="item" style="cursor:default">${avatar(s)}<div class="nm"><b>${esc(titleCase(s.nombre))}</b><small>${s.tel ? esc(s.tel) : 'sin número'}${s.ci ? '' : ' · sin C.I.'}</small></div><button class="wab" data-m="${s.id}">${I.wa}</button></div>`).join('')}</div>
+  <button class="btn block" onclick="closeSheet()">Listo</button>`, sh => {
+    $$('[data-m]', sh).forEach(b => b.onclick = async () => { await sendSummary(students.find(s => s.id === b.dataset.m)); b.classList.add('done'); b.innerHTML = I.check; });
+  });
+}
+async function exportXLS(){
+  try{ await loadScript('vendor/xlsx.full.min.js'); }catch(e){ toast('Necesitas internet la primera vez para exportar a Excel'); return; }
+  const days = classDays(repMonth); const [y, m] = repMonth.split('-').map(Number);
+  const head = [['N°','Apellidos y nombres','C.I.', ...days.map(d => Number(d.slice(8))), 'Presente','Tarde','Falta','Licencia','% Asistencia']];
+  const rows = students.map((s, i) => { const st = statsFor(s.id, days); return [i+1, titleCase(s.nombre), s.ci || '', ...days.map(d => { const r = (att[d]||{})[s.id]; return r ? r.e : ''; }), st.P, st.T, st.F, st.L, st.tot ? st.pct / 100 : '']; });
+  const aoa = [[cfg.ue], [`${cfg.nivel ? cfg.nivel + ' · ' : ''}${cfg.grado} · Gestión ${cfg.gestion}`], [`Maestro(a): ${titleCase(cfg.maestro)}`], [`Registro de asistencia – ${cap(MESES[m-1])} ${y}`], [], ...head, ...rows, [], ['P = Presente, T = Tarde, F = Falta, L = Licencia']];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:4}, {wch:36}, {wch:12}, ...days.map(() => ({wch:4})), {wch:9}, {wch:7}, {wch:7}, {wch:9}, {wch:12}];
+  const pctCol = 3 + days.length + 4; rows.forEach((r, i) => { const ref = XLSX.utils.encode_cell({r:6 + i, c:pctCol}); if(ws[ref] && typeof ws[ref].v === 'number') ws[ref].z = '0%'; });
+  const det = [['Fecha','Estudiante','C.I.','Estado','Hora','Registro','Nota']];
+  days.forEach(d => students.forEach(s => { const r = (att[d]||{})[s.id]; if(r) det.push([d, titleCase(s.nombre), s.ci || '', EST[r.e], r.h || '', r.m === 'qr' ? 'QR' : 'Manual', r.n || '']); }));
+  const ws2 = XLSX.utils.aoa_to_sheet(det); ws2['!cols'] = [{wch:11}, {wch:36}, {wch:12}, {wch:10}, {wch:7}, {wch:9}, {wch:24}];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Asistencia'); XLSX.utils.book_append_sheet(wb, ws2, 'Detalle');
+  const out = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  shareOrDownload(new Blob([out], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `Asistencia_${cfg.grado.replace(/[^\w]+/g,'')}_${repMonth}.xlsx`);
+}
+function printMonth(){
+  const days = classDays(repMonth); const [y, m] = repMonth.split('-').map(Number);
+  const html = `<div class="prep"><div class="head">${cfg.logoUE ? `<img src="${cfg.logoUE}">` : ''}<div><h2>${esc(cfg.ue)}</h2><div class="meta">${esc([cfg.nivel, cfg.grado, 'Gestión ' + cfg.gestion].filter(Boolean).join(' · '))}<br>Maestro(a): ${esc(titleCase(cfg.maestro))} · Registro de asistencia – <b>${cap(MESES[m-1])} ${y}</b></div></div><img src="${gradeLogo()}" style="margin-left:auto"></div>
+  <table><thead><tr><th>N°</th><th>Estudiante</th>${days.map(d => `<th>${Number(d.slice(8))}</th>`).join('')}<th>P</th><th>T</th><th>F</th><th>L</th><th>%</th></tr></thead><tbody>
+  ${students.map((s, i) => { const st = statsFor(s.id, days); return `<tr><td>${i+1}</td><td class="n">${esc(titleCase(s.nombre))}</td>${days.map(d => { const r = (att[d]||{})[s.id]; return `<td>${r ? r.e : ''}</td>`; }).join('')}<td>${st.P}</td><td>${st.T}</td><td>${st.F}</td><td>${st.L}</td><td>${st.tot ? st.pct + '%' : ''}</td></tr>`; }).join('')}</tbody></table>
+  <p style="font-size:8pt">P = Presente · T = Tarde · F = Falta · L = Licencia</p><div style="margin-top:18mm;display:flex;justify-content:space-around;font-size:9pt"><div style="border-top:.3mm solid #000;padding-top:1mm;width:60mm;text-align:center">Maestro(a)</div><div style="border-top:.3mm solid #000;padding-top:1mm;width:60mm;text-align:center">Dirección</div></div></div>`;
+  doPrint(html, '@page{size:letter landscape;margin:10mm}');
+}
+
+/* ---------- MÁS ---------- */
+function vMas(){
+  return `<h2>Más opciones</h2>
+  <div class="list">
+    <div class="item" onclick="go('cfg')"><div class="av">${I.more.replace('<svg','<svg width="22" height="22"')}</div><div class="nm"><b>Configuración</b><small>Unidad educativa, grado, logos, horario y mensajes</small></div>${I.right.replace('<svg','<svg width="18" height="18"')}</div>
+    <div class="item" onclick="go('car')"><div class="av">${I.card.replace('<svg','<svg width="22" height="22"')}</div><div class="nm"><b>Carnets</b><small>Diseña, descarga e imprime los carnets con QR</small></div>${I.right.replace('<svg','<svg width="18" height="18"')}</div>
+    ${lic.role === 'owner' ? `<div class="item" onclick="go('adm')"><div class="av">${I.lock.replace('<svg','<svg width="22" height="22"')}</div><div class="nm"><b>Administrador</b><small>Crea códigos de acceso para colegas</small></div>${I.right.replace('<svg','<svg width="18" height="18"')}</div>` : ''}
+    <div class="item" onclick="go('portal')"><div class="av">${I.family.replace('<svg','<svg width="22" height="22"')}</div><div class="nm"><b>Portal de padres</b><small>Ver cómo lo ven los padres</small></div>${I.right.replace('<svg','<svg width="18" height="18"')}</div>
+  </div>
+  <h3>Respaldo</h3>
+  <div class="card soft stack"><span class="hint">Tus datos se guardan solo en este celular. Haz un respaldo cada semana y guárdalo en tu Drive o envíatelo por WhatsApp. Con el archivo puedes pasar todo a otro celular.</span>
+  <div class="grid2"><button class="btn" id="bkOut">${I.dl} Crear respaldo</button><label class="btn">Restaurar<input type="file" accept=".json,application/json" hidden id="bkIn"></label></div></div>
+  ${installUI()}
+  <div class="card soft"><span class="hint">Sesión: <b>${esc(lic.role === 'owner' ? 'Administrador' : lic.name)}</b>${lic.exp && lic.exp !== '0' ? ` · código válido hasta ${lic.exp.slice(6)}/${lic.exp.slice(4,6)}/${lic.exp.slice(0,4)}` : ''} · versión ${APP_VERSION}</span></div>
+  <button class="btn ghost" id="logout">Cerrar sesión en este celular</button>`;
+}
+function bindMas(){
+  $('#bkOut').onclick = () => { const data = {app:'AsistQR', v:1, fecha:new Date().toISOString(), cfg, students, att, offDays}; shareOrDownload(new Blob([JSON.stringify(data)], {type:'application/json'}), `AsistQR_respaldo_${today()}.json`); };
+  $('#bkIn').onchange = async e => { const f = e.target.files[0]; if(!f) return; try{ const d = JSON.parse(await f.text()); if(d.app !== 'AsistQR') throw 0;
+    confirmSheet('Restaurar respaldo', `El respaldo tiene <b>${(d.students||[]).length}</b> estudiantes y <b>${Object.keys(d.att||{}).length}</b> días de asistencia. Reemplazará los datos actuales de este celular.`, 'Restaurar', () => { cfg = Object.assign(defaultCfg(), d.cfg || {}); students = d.students || []; att = d.att || {}; offDays = d.offDays || []; saveCfg(); saveStudents(); saveAtt(); saveOff(); carSel = null; go('hoy'); toast('Respaldo restaurado'); });
+  }catch(_){ toast('Ese archivo no es un respaldo de AsistQR'); } };
+  $('#logout').onclick = () => confirmSheet('Cerrar sesión', 'Tus estudiantes y asistencias se quedan guardados en este celular. Para volver a entrar necesitarás tu código.', 'Cerrar sesión', () => { LS.del('aqr_lic'); lic = null; route = 'welcome'; render(); });
+}
+
+/* ---------- CONFIGURACIÓN ---------- */
+function vCfg(){
+  const f = (id, label, val, attrs='') => `<div class="field"><label for="${id}">${label}</label><input id="${id}" value="${esc(val)}" ${attrs}></div>`;
+  return `<div class="row"><button class="iconbtn" onclick="go('mas')" aria-label="Volver">${I.left}</button><h2>Configuración</h2></div>
+  ${!cfg.ue ? `<div class="banner">Completa los datos de tu unidad educativa y grado. Aparecerán en carnets, reportes y mensajes.</div>` : ''}
+  <h3>Unidad educativa y grado</h3>
+  ${f('cUE','Nombre de la unidad educativa',cfg.ue,'placeholder="Unidad Educativa ..."')}
+  ${f('cNiv','Nivel',cfg.nivel,'placeholder="Primaria Comunitaria Vocacional"')}
+  <div class="grid2">${f('cGr','Grado y paralelo',cfg.grado,'placeholder="5° A"')}${f('cGes','Gestión',cfg.gestion,'inputmode="numeric"')}</div>
+  ${f('cMa','Maestro(a)',cfg.maestro)}
+  ${f('cCi','Ciudad',cfg.ciudad,'placeholder="Oruro – Bolivia"')}
+  <h3>Logos</h3>
+  <div class="row"><div class="logoprev">${cfg.logoUE ? `<img src="${cfg.logoUE}" alt="">` : ''}</div><div class="stack" style="flex:1"><b>Logo de la unidad educativa</b><div class="row"><label class="btn sm">Subir<input type="file" accept="image/*" hidden id="lUE"></label>${cfg.logoUE ? '<button class="btn sm ghost" id="lUEx">Quitar</button>' : ''}</div></div></div>
+  <div class="row"><div class="logoprev"><img src="${gradeLogo()}" alt=""></div><div class="stack" style="flex:1"><b>Logo del grado</b><span class="hint">Si no subes uno, se usa una insignia con el nombre del grado.</span><div class="row"><label class="btn sm">Subir<input type="file" accept="image/*" hidden id="lGr"></label>${cfg.logoGrado ? '<button class="btn sm ghost" id="lGrx">Quitar</button>' : ''}</div></div></div>
+  <div class="field"><label for="cCol">Color principal (carnets e insignia)</label><div class="row"><input id="cCol" type="color" value="${esc(cfg.color)}" style="width:64px;padding:4px"><span class="hint">Rojo institucional por defecto</span></div></div>
+  <h3>Horario</h3>
+  <div class="grid2">${f('cHora','Hora de entrada',cfg.hora,'type="time"')}${f('cTol','Tolerancia (minutos)',cfg.tol,'type="number" min="0" max="60" inputmode="numeric"')}</div>
+  <span class="hint">Cámbiala cuando cambie el horario (por ejemplo, horario de invierno). Después de esta hora + tolerancia, el registro es “Tarde”.</span>
+  <div class="field"><label for="cAms">Autocierre del escáner (segundos)</label><input id="cAms" type="number" min="1" max="10" value="${(Number(cfg.autoMs)||2500)/1000}"></div>
+  <h3>Mensajes de WhatsApp</h3>
+  <span class="hint">Puedes usar: {estudiante} {hijo} {fecha} {hora} {entrada} {grado} {ue} {maestro}</span>
+  ${['P','T','F','L'].map(k => `<div class="field"><label for="m${k}">Mensaje: ${EST[k]}</label><textarea id="m${k}">${esc(cfg['msg' + k])}</textarea></div>`).join('')}
+  <button class="btn ghost sm" id="mReset" style="align-self:flex-start">Restaurar mensajes originales</button>
+  <button class="btn pri big block" id="cSave">Guardar configuración</button>`;
+}
+function bindCfg(){
+  $('#lUE').onchange = async e => { const f = e.target.files[0]; if(f){ cfg.logoUE = await logoFromFile(f); collectCfg(); saveCfg(); render(); } };
+  $('#lGr').onchange = async e => { const f = e.target.files[0]; if(f){ cfg.logoGrado = await logoFromFile(f); collectCfg(); saveCfg(); render(); } };
+  const x1 = $('#lUEx'); if(x1) x1.onclick = () => { collectCfg(); cfg.logoUE = ''; saveCfg(); render(); };
+  const x2 = $('#lGrx'); if(x2) x2.onclick = () => { collectCfg(); cfg.logoGrado = ''; saveCfg(); render(); };
+  $('#mReset').onclick = () => { const d = defaultCfg(); ['P','T','F','L'].forEach(k => $('#m' + k).value = d['msg' + k]); };
+  $('#cSave').onclick = () => { collectCfg(); if(saveCfg()){ toast('Configuración guardada'); go('hoy'); } };
+}
+function collectCfg(){
+  const v = id => $('#' + id) ? $('#' + id).value.trim() : undefined;
+  const map = {ue:'cUE', nivel:'cNiv', grado:'cGr', gestion:'cGes', maestro:'cMa', ciudad:'cCi', color:'cCol', hora:'cHora', tol:'cTol', msgP:'mP', msgT:'mT', msgF:'mF', msgL:'mL'};
+  Object.entries(map).forEach(([k, id]) => { const x = v(id); if(x !== undefined) cfg[k] = x; });
+  const a = v('cAms'); if(a) cfg.autoMs = Math.max(1, Math.min(10, Number(a) || 2.5)) * 1000;
+  cfg.tol = Number(cfg.tol) || 0;
+}
+
+/* ---------- ADMINISTRADOR ---------- */
+function vAdm(){
+  const issued = LS.get('aqr_issued', []); const y = cfg.gestion || new Date().getFullYear();
+  return `<div class="row"><button class="iconbtn" onclick="go('mas')" aria-label="Volver">${I.left}</button><h2>Administrador</h2></div>
+  <div class="card soft"><span class="hint">Crea un código personal para cada colega. Cada colega tendrá su propio espacio en su celular: su colegio, sus logos y sus estudiantes. Nadie puede crear códigos sin tu clave maestra.</span></div>
+  <div class="field"><label for="aName">Nombre del colega</label><input id="aName" placeholder="Ej.: Prof. María Quispe"></div>
+  <div class="field"><label for="aExp">Válido hasta</label><input id="aExp" type="date" value="${y}-12-31"></div>
+  <button class="btn pri big block" id="aGen">${I.plus} Crear código</button>
+  <div id="aOut"></div>
+  <h3>Códigos entregados</h3>
+  ${issued.length ? `<div class="list">${issued.slice().reverse().map(c => `<div class="item" style="cursor:default"><div class="nm"><b>${esc(c.name)}</b><small>ID ${c.id} · hasta ${esc(c.exp || 'sin límite')}${c.rev ? ' · <span style="color:var(--abs);font-weight:700">desactivado</span>' : ''}</small></div><button class="btn sm" data-share="${c.id}">Reenviar</button>${c.rev ? '' : `<button class="btn sm ghost" data-rev="${c.id}">Desactivar</button>`}</div>`).join('')}</div>` : '<p class="hint" style="margin:0">Aún no creaste códigos.</p>'}
+  <div id="revBox"></div>`;
+}
+function bindAdm(){
+  $('#aGen').onclick = async () => {
+    const name = $('#aName').value.trim(); if(!name){ toast('Escribe el nombre del colega'); return; }
+    const exp = $('#aExp').value;
+    try{ const {id, code} = await makeCode(name, exp); const issued = LS.get('aqr_issued', []); issued.push({id, name, exp, code, date:today()}); LS.set('aqr_issued', issued); render(); showCode(issued[issued.length - 1]); }
+    catch(e){ toast('No se pudo crear el código'); }
+  };
+  $$('[data-share]').forEach(b => b.onclick = () => showCode(LS.get('aqr_issued', []).find(c => c.id === b.dataset.share)));
+  $$('[data-rev]').forEach(b => b.onclick = () => confirmSheet('Desactivar código', 'El código dejará de funcionar cuando se actualice la lista de códigos desactivados en el sitio web (archivo revocados.json).', 'Desactivar', () => { const is = LS.get('aqr_issued', []); is.forEach(c => { if(c.id === b.dataset.rev) c.rev = true; }); LS.set('aqr_issued', is); render(); showRevoked(); }, true));
+}
+function showCode(c){
+  const link = baseURL() + '#c=' + c.code;
+  const msg = `Hola ${c.name}, te comparto *AsistQR*, la app de control de asistencia con QR.\n\n1) Abre este enlace en tu celular (se activa solo):\n${link}\n\n2) Instálala: menú ⋮ → “Instalar aplicación” (Android) o Compartir → “Agregar a inicio” (iPhone).\n\nEste código es personal; por favor no lo compartas.`;
+  const out = $('#aOut'); if(!out) return;
+  out.innerHTML = `<div class="card stack"><b>Código de ${esc(c.name)}</b><div class="code">${esc(c.code)}</div><div class="grid2"><button class="btn wa" id="cWA">${I.wa} Enviar</button><button class="btn" id="cCp">Copiar enlace</button></div></div>`;
+  $('#cWA').onclick = () => openWA('', msg); $('#cCp').onclick = () => copyText(link);
+  out.scrollIntoView({behavior:'smooth', block:'center'});
+}
+function showRevoked(){
+  const ids = LS.get('aqr_issued', []).filter(c => c.rev).map(c => c.id); const json = JSON.stringify({ids});
+  const box = $('#revBox'); if(!box) return;
+  box.innerHTML = `<div class="card stack"><b>Para que el cambio surta efecto</b><span class="hint">Reemplaza el contenido del archivo <b>revocados.json</b> de tu sitio web por este texto. La app de ese colega se bloqueará la próxima vez que se abra con internet.</span><div class="code">${esc(json)}</div><button class="btn" id="rvCp">Copiar</button></div>`;
+  $('#rvCp').onclick = () => copyText(json);
+}
+
+/* ---------- PORTAL DE PADRES ---------- */
+function vPortal(){
+  const back = lic ? `<button class="iconbtn" onclick="go('mas')" aria-label="Volver">${I.left}</button>` : (kids.length || portalPending ? '' : `<button class="iconbtn" onclick="go('welcome')" aria-label="Volver">${I.left}</button>`);
+  let body = '';
+  if(portalPending){
+    body = `<div class="card stack"><b style="font:700 22px var(--display);text-transform:uppercase">Nuevo reporte de asistencia</b><span class="hint">Para verlo, escribe el número de carnet de identidad (C.I.) de tu hijo(a).</span>
+    <div class="field"><label for="pCI">C.I. del estudiante</label><input id="pCI" inputmode="text" autocomplete="off" placeholder="Ej.: 12345678"></div><button class="btn pri big block" id="pGo">Ver asistencia</button><p class="hint" id="pErr" style="color:var(--abs);font-weight:600;margin:0"></p></div>`;
+  } else if(portalKid !== null && kids[portalKid]){
+    const k = kids[portalKid]; const recs = parseRecs(k);
+    const ms = portalMonth; const [y, m] = ms.split('-').map(Number);
+    const vals = Object.entries(recs).filter(([d]) => d.startsWith(ms)).map(([, r]) => r); const c = {P:0,T:0,F:0,L:0}; vals.forEach(r => c[r.e]++);
+    const allV = Object.values(recs); const ca = {P:0,T:0,F:0,L:0}; allV.forEach(r => ca[r.e]++); const pct = allV.length ? Math.round((ca.P + ca.T) / allV.length * 100) : 0;
+    body = `<div class="card stack"><div><b style="font:800 24px/1.05 var(--display);text-transform:uppercase">${esc(k.n)}</b><div class="sub">${esc(k.u)} · ${esc(k.g)}${k.m ? ' · Prof. ' + esc(k.m) : ''}</div></div>
+      <div class="row between"><span class="hint">Asistencia en la gestión ${esc(k.y)}</span><span class="pill ${pct >= 85 ? 'P' : pct >= 70 ? 'T' : 'F'}" style="font-size:15px">${allV.length ? pct + '%' : '—'}</span></div></div>
+      <div class="datebar"><button class="iconbtn" id="pmP" aria-label="Mes anterior">${I.left}</button><div class="d"><b>${cap(MESES[m-1])} ${y}</b></div><button class="iconbtn" id="pmN" aria-label="Mes siguiente">${I.right}</button></div>
+      <div class="stats">${['P','T','F','L'].map(k2 => `<div class="stat ${k2 === 'L' ? '' : k2}" style="${k2 === 'L' ? 'background:var(--lic-bg);color:var(--lic)' : ''}"><b>${c[k2]}</b><span>${EST[k2]}</span></div>`).join('')}</div>
+      <div class="card">${calHTML(ms, d => recs[d])}</div>
+      <div class="legend"><span class="pill P">Presente</span><span class="pill T">Tarde</span><span class="pill F">Falta</span><span class="pill L">Licencia</span></div>
+      <p class="hint" style="margin:0">Hora de entrada: ${esc(k.h)}. Actualizado el ${new Date(k.t).toLocaleString('es-BO', {dateStyle:'medium', timeStyle:'short'})}. Para ver datos nuevos, abre el último enlace que te envió el maestro.</p>
+      ${kids.length > 1 ? `<button class="btn" onclick="portalKid=null;render()">Ver otros hijos</button>` : ''}`;
+  } else if(kids.length){
+    body = `<div class="list">${kids.map((k, i) => `<div class="item" data-k="${i}"><div class="av">${esc(initials(k.n))}</div><div class="nm"><b>${esc(k.n)}</b><small>${esc(k.u)} · ${esc(k.g)}</small></div>${I.right.replace('<svg','<svg width="18" height="18"')}</div>`).join('')}</div>`;
+  } else {
+    body = `<div class="card soft empty"><b>Aún no tienes reportes</b>Cuando el maestro te envíe el enlace por WhatsApp, ábrelo y escribe el C.I. de tu hijo(a). Quedará guardado aquí.</div>`;
+  }
+  return `<main style="padding-top:calc(16px + env(safe-area-inset-top,0px))"><div class="row">${back}<h2>Portal de padres</h2></div>${body}${installUI()}
+  ${!lic ? `<button class="btn ghost sm" style="align-self:center" onclick="go('activar')">Soy maestro(a)</button>` : ''}</main>`;
+}
+function bindPortal(){
+  const g = $('#pGo'); if(g) g.onclick = async () => {
+    const ci = $('#pCI').value; $('#pErr').textContent = ''; if(!normCI(ci)){ $('#pErr').textContent = 'Escribe el C.I.'; return; }
+    try{ const k = await openPortalPayload(portalPending, ci); const key = k.n + '|' + k.u + '|' + k.g;
+      const i = kids.findIndex(x => (x.n + '|' + x.u + '|' + x.g) === key);
+      if(i >= 0){ if(k.t >= (kids[i].t || 0)) kids[i] = k; portalKid = i; } else { kids.push(k); portalKid = kids.length - 1; }
+      LS.set('aqr_kids', kids); portalPending = null; portalMonth = latestMonth(k); route = 'portal'; render();
+    }catch(e){ $('#pErr').textContent = 'El C.I. no coincide con este reporte. Revisa el número.'; }
+  };
+  const ci = $('#pCI'); if(ci) ci.onkeydown = e => { if(e.key === 'Enter') g.click(); };
+  $$('[data-k]').forEach(el => el.onclick = () => { portalKid = Number(el.dataset.k); portalMonth = latestMonth(kids[portalKid]); render(); });
+  const mv = n => { const [y, m] = portalMonth.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); portalMonth = `${d.getFullYear()}-${pad(d.getMonth()+1)}`; render(); };
+  const p = $('#pmP'); if(p) p.onclick = () => mv(-1); const n = $('#pmN'); if(n) n.onclick = () => mv(1);
+  if(portalKid === null && kids.length === 1 && !portalPending){ portalKid = 0; portalMonth = latestMonth(kids[0]); render(); }
+}
+function latestMonth(k){ const ds = Object.keys(parseRecs(k)).sort(); const cur = today().slice(0,7); return ds.length && ds[ds.length-1].slice(0,7) < cur && ds[ds.length-1].startsWith(k.y) ? ds[ds.length-1].slice(0,7) : (String(k.y) === cur.slice(0,4) ? cur : ds.length ? ds[ds.length-1].slice(0,7) : cur); }
+
+/* ---------- Arranque ---------- */
+(async function boot(){
+  if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  const h = location.hash;
+  if(h.startsWith('#p=')){ portalPending = h.slice(3); route = 'portal'; history.replaceState(null, '', location.pathname); }
+  if(h.startsWith('#c=')){ const code = h.slice(3); history.replaceState(null, '', location.pathname);
+    if(!lic){ try{ await activate(code); }catch(e){ route = 'activar'; render(); $('#acCode').value = code; $('#acErr').textContent = e.message || 'Código inválido.'; return; } }
+  }
+  if(!lic && route === 'hoy') route = 'welcome';
+  render();
+  if(lic) checkLicense();
+  // Al volver del WhatsApp, refrescar la vista
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden' && route === 'scan') stopScanner(); else if(document.visibilityState === 'visible' && route === 'scan') startScanner(); });
+})();
+</script>
+</body>
+</html>

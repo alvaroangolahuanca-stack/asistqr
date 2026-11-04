@@ -1,0 +1,32 @@
+ASISTQR 10 F – CÓMO PUBLICAR LA APP (gratis, una sola vez)
+
+OPCIÓN A · Netlify (la más fácil, unos 3 minutos)
+1. En una computadora entra a  https://app.netlify.com/drop
+2. Crea una cuenta gratuita (puedes entrar con tu correo de Gmail).
+3. Descomprime el archivo AsistQR_app.zip y ARRASTRA LA CARPETA "asistqr" a la página.
+4. Netlify te da una dirección pública, por ejemplo: https://asistqr-10f.netlify.app
+   (En "Site configuration > Change site name" puedes ponerle un nombre fácil.)
+5. Esa es la URL que abres en tu celular y que compartes con padres y colegas.
+
+OPCIÓN B · GitHub Pages
+1. Crea una cuenta en https://github.com y un repositorio público llamado "asistqr".
+2. Sube todos los archivos de la carpeta (Add file > Upload files).
+3. Settings > Pages > Branch: main > Save.
+4. Tu dirección será: https://TU-USUARIO.github.io/asistqr/
+
+PRIMER USO (maestro administrador)
+1. Abre la URL en tu celular con Chrome. Menú ⋮ > "Instalar aplicación".
+2. Toca "Soy maestro(a)" y pega tu CLAVE MAESTRA (archivo CLAVE_MAESTRA_AsistQR.txt).
+3. Ve a Más > Respaldo > Restaurar y elige el archivo AsistQR_datos_5A_10deFebrero.json
+   (carga tu U.E., el logo, el 5° A y tus 28 estudiantes).
+4. En Estudiantes, completa C.I., RUDE, WhatsApp del tutor y la foto de cada uno.
+5. En Más > Carnets, imprime o guarda en PDF los carnets (9 por hoja carta).
+
+DESACTIVAR EL CÓDIGO DE UN COLEGA
+Más > Administrador > Desactivar. La app te muestra un texto; reemplaza con él el
+contenido del archivo revocados.json de tu sitio (en Netlify: vuelve a arrastrar la carpeta).
+
+IMPORTANTE
+- Los datos de asistencia se guardan en el celular de cada maestro. Haz un respaldo cada
+  semana (Más > Respaldo > Crear respaldo) y guárdalo en tu Drive o en WhatsApp.
+- Nunca compartas tu clave maestra.
