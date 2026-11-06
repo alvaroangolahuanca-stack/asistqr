@@ -113,6 +113,7 @@ h3{font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;c
 .av img{width:100%;height:100%;object-fit:cover}
 .wab{width:38px;height:38px;border-radius:50%;border:0;display:grid;place-items:center;cursor:pointer;flex:none;background:var(--wa);color:#fff}
 .wab.done{background:var(--mist);color:var(--ok)}
+.wab.nonum{background:#fff;color:var(--wa);border:2px dashed var(--wa)}
 .wab svg{width:20px;height:20px}
 .num{font-variant-numeric:tabular-nums}
 .search{position:relative}
@@ -227,7 +228,7 @@ td.cP{color:var(--ok);font-weight:700} td.cT{color:var(--late);font-weight:700} 
    AsistQR 10 F — control de asistencia con QR
    Los datos se guardan en el propio celular (localStorage).
    ========================================================= */
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 // Llave pública del administrador (dueño). Solo quien tiene la clave maestra puede crear códigos.
 const ADMIN_PUB = {kty:'EC',crv:'P-256',x:'cNRSCzlm58bkhWh_sVceoD0FmkWqbmHwZIT42xiNquo',y:'4s97MZUcwfYX2LCWr3vckrdMTZi32m1DMIlC5pk0gKI',ext:true};
 
@@ -379,10 +380,22 @@ function fillTpl(tpl, s, r, d){
   })[k] ?? m);
 }
 function msgFor(s, d=curDate){ const r = recOf(s.id, d); if(!r) return ''; return fillTpl(cfg['msg' + r.e] || '', s, r, d); }
-function sendWA(sid, d=curDate){
+function validPhone(p){ const d = String(p||'').replace(/\D/g,''); return (d.length === 8 && /^[67]/.test(d)) || (d.length === 11 && /^591[67]/.test(d)) || (d.length >= 10 && !d.startsWith('591') && d.length <= 15); }
+function sendWA(sid, d=curDate, onDone){
   const s = students.find(x => x.id === sid); if(!s) return; const r = recOf(sid, d); if(!r) return;
-  if(!s.tel){ toast('Falta el número de WhatsApp. Puedes elegir el contacto en WhatsApp.'); }
-  openWA(s.tel, msgFor(s, d)); r.wa = true; saveAtt();
+  const done = () => { r.wa = true; saveAtt(); onDone && onDone(); };
+  if(validPhone(s.tel)){ openWA(s.tel, msgFor(s, d)); done(); return; }
+  sheet(`<h3>Falta el WhatsApp</h3><p style="margin:0"><b>${esc(titleCase(s.nombre))}</b> ${s.tel ? `tiene un número que no parece válido (<b>${esc(s.tel)}</b>)` : 'no tiene número guardado'}. Escríbelo una vez y quedará guardado para siempre.</p>
+  <div class="field"><label for="nwTel">WhatsApp del padre, madre o tutor</label><input id="nwTel" inputmode="tel" placeholder="Ej.: 71234567" value="${esc(s.tel||'')}"></div>
+  <div class="field"><label for="nwTut">Nombre del tutor (opcional)</label><input id="nwTut" value="${esc(s.tutor||'')}"></div>
+  <p class="hint" id="nwErr" style="margin:0;color:var(--abs);font-weight:600"></p>
+  <button class="btn wa big block" id="nwGo">${I.wa} Guardar y enviar</button>
+  <button class="btn block" id="nwPick">Elegir el contacto en WhatsApp</button>`, sh => {
+    const t = $('#nwTel', sh); setTimeout(() => t.focus(), 150);
+    $('#nwGo', sh).onclick = () => { if(!validPhone(t.value)){ $('#nwErr', sh).textContent = 'Revisa el número: deben ser 8 dígitos y empezar con 6 o 7 (ej.: 71234567).'; return; }
+      s.tel = t.value.trim(); s.tutor = $('#nwTut', sh).value.trim() || s.tutor; saveStudents(); closeSheet(); openWA(s.tel, msgFor(s, d)); done(); };
+    $('#nwPick', sh).onclick = () => { closeSheet(); openWA('', msgFor(s, d)); done(); };
+  });
 }
 
 /* ---------- Activación y códigos ---------- */
@@ -613,14 +626,14 @@ function vHoy(){
 function avatar(s){ return `<div class="av">${s.foto ? `<img src="${s.foto}" alt="">` : esc(initials(s.nombre))}</div>`; }
 function rowHoy(s, r){
   const pill = r ? `<span class="pill ${r.e}">${EST[r.e]}${r.h ? ' · ' + r.h : ''}</span>` : `<span class="pill N">Sin marcar</span>`;
-  const wa = r ? `<button class="wab ${r.wa ? 'done' : ''}" data-wa="${s.id}" aria-label="Enviar WhatsApp">${r.wa ? I.check : I.wa}</button>` : '';
+  const wa = r ? `<button class="wab ${r.wa ? 'done' : validPhone(s.tel) ? '' : 'nonum'}" data-wa="${s.id}" aria-label="Enviar WhatsApp" title="${validPhone(s.tel) ? '' : 'Sin número de WhatsApp'}">${r.wa ? I.check : I.wa}</button>` : '';
   return `<div class="item" data-s="${s.id}">${avatar(s)}<div class="nm"><b>${esc(titleCase(s.nombre))}</b>${pill}</div>${wa}</div>`;
 }
 function bindHoy(){
   $$('[data-d]').forEach(b => b.onclick = () => { const d = parseD(curDate); do{ d.setDate(d.getDate() + Number(b.dataset.d)); } while(d.getDay() === 0 || d.getDay() === 6); const s = ymd(d); if(s > today()) return; curDate = s; render(); });
   $$('[data-f]').forEach(b => b.onclick = () => { filter = filter === b.dataset.f && b.classList.contains('stat') ? 'all' : b.dataset.f; render(); });
   $$('.item[data-s]').forEach(el => el.onclick = e => { if(e.target.closest('[data-wa]')) return; markSheet(el.dataset.s); });
-  $$('[data-wa]').forEach(b => b.onclick = e => { e.stopPropagation(); sendWA(b.dataset.wa); render(); });
+  $$('[data-wa]').forEach(b => b.onclick = e => { e.stopPropagation(); sendWA(b.dataset.wa, curDate, render); });
   const off = $('#offTg'); if(off) off.onclick = () => { if(isOff(curDate)) offDays = offDays.filter(d => d !== curDate); else offDays.push(curDate); saveOff(); render(); };
   const cd = $('#closeDay'); if(cd) cd.onclick = () => confirmSheet('Cerrar el día', `Se marcará <b>Falta</b> a los estudiantes sin registro del ${esc(fechaLarga(curDate))}.`, 'Marcar faltas', () => { students.forEach(s => { if(!recOf(s.id)) mark(s.id, 'F'); }); toast('Faltas registradas'); filter = 'F'; render(); });
   const wa = $('#waAll'); if(wa) wa.onclick = waQueue;
@@ -629,9 +642,9 @@ function waQueue(){
   const recs = att[curDate] || {};
   const pend = students.filter(s => recs[s.id] && !recs[s.id].wa);
   sheet(`<h3>Avisos por WhatsApp</h3><p class="hint" style="margin:0">Toca cada botón: se abre WhatsApp con el mensaje listo; solo presiona <b>Enviar</b> y vuelve aquí.</p>
-  <div class="list">${pend.map(s => `<div class="item" style="cursor:default">${avatar(s)}<div class="nm"><b>${esc(titleCase(s.nombre))}</b><span class="pill ${recs[s.id].e}">${EST[recs[s.id].e]}</span> <small>${s.tel ? esc(s.tel) : 'sin número'}</small></div><button class="wab" data-q="${s.id}">${I.wa}</button></div>`).join('')}</div>
+  <div class="list">${pend.map(s => `<div class="item" style="cursor:default">${avatar(s)}<div class="nm"><b>${esc(titleCase(s.nombre))}</b><span class="pill ${recs[s.id].e}">${EST[recs[s.id].e]}</span> <small>${validPhone(s.tel) ? esc(s.tel) : '<b style="color:var(--abs)">sin número</b>'}</small></div><button class="wab ${validPhone(s.tel) ? '' : 'nonum'}" data-q="${s.id}">${I.wa}</button></div>`).join('')}</div>
   <button class="btn block" onclick="closeSheet();render()">Listo</button>`, sh => {
-    $$('[data-q]', sh).forEach(b => b.onclick = () => { sendWA(b.dataset.q); b.classList.add('done'); b.innerHTML = I.check; });
+    $$('[data-q]', sh).forEach(b => b.onclick = () => { const q = b.dataset.q; const direct = validPhone((students.find(x => x.id === q)||{}).tel); sendWA(q, curDate, direct ? null : waQueue); if(direct){ b.classList.add('done'); b.innerHTML = I.check; } });
   });
 }
 function markSheet(sid){
@@ -647,7 +660,7 @@ function markSheet(sid){
       closeSheet(); render(); toast(`${titleCase(s.nombre).split(' ').slice(-2).join(' ')}: ${EST[e]}`);
     });
     const d = $('#mkDel', sh); if(d) d.onclick = () => { unmark(sid); closeSheet(); render(); };
-    $('#mkWA', sh).onclick = () => { sendWA(sid); closeSheet(); render(); };
+    $('#mkWA', sh).onclick = () => { closeSheet(); sendWA(sid, curDate, render); };
   });
 }
 
@@ -673,7 +686,7 @@ function renderLast(){
   const el = $('#lastList'); if(!el) return; const recs = att[today()] || {};
   const last = Object.entries(recs).filter(([, r]) => r.m === 'qr').sort((a, b) => (b[1].h || '').localeCompare(a[1].h || '')).slice(0, 6);
   el.innerHTML = last.length ? `<h3 style="margin-bottom:8px">Últimos registros</h3><div class="list">${last.map(([sid, r]) => { const s = students.find(x => x.id === sid); return s ? rowHoy(s, r) : ''; }).join('')}</div>` : '';
-  $$('[data-wa]', el).forEach(b => b.onclick = e => { e.stopPropagation(); sendWA(b.dataset.wa, today()); renderLast(); });
+  $$('[data-wa]', el).forEach(b => b.onclick = e => { e.stopPropagation(); sendWA(b.dataset.wa, today(), renderLast); });
   $$('.item[data-s]', el).forEach(it => it.onclick = e => { if(e.target.closest('[data-wa]')) return; curDate = today(); markSheet(it.dataset.s); });
 }
 async function startScanner(){
@@ -741,7 +754,7 @@ function showResult({cls, s, title, sub, wa}){
     <div class="row" style="justify-content:center">${wa && s ? `<button class="btn wa" id="rWA">${I.wa} Avisar</button>` : ''}<button class="btn dark" id="rNext">Siguiente</button></div>${cfg.auto ? '<div class="bar" id="rBar"></div>' : ''}</div>`;
   const next = () => { clearTimeout(autoT); box.innerHTML = ''; paused = false; };
   $('#rNext').onclick = next;
-  const w = $('#rWA'); if(w) w.onclick = () => { clearTimeout(autoT); sendWA(s.id, today()); renderLast(); next(); };
+  const w = $('#rWA'); if(w) w.onclick = () => { clearTimeout(autoT); next(); sendWA(s.id, today(), renderLast); };
   if(cfg.auto){ const ms = Number(cfg.autoMs) || 2500; const bar = $('#rBar'); bar.style.width = '100%'; bar.style.transition = `width ${ms}ms linear`; requestAnimationFrame(() => requestAnimationFrame(() => bar.style.width = '0%')); autoT = setTimeout(next, ms); }
 }
 function searchSheet(){
@@ -791,7 +804,7 @@ function editStudent(sid){
       Object.assign(s, {nombre:n.toUpperCase(), ci:$('#eCI', sh).value.trim(), rude:$('#eR', sh).value.trim(), genero:$('#eG', sh).value, nac:$('#eNac', sh).value, tutor:$('#eT', sh).value.trim(), tel:$('#eW', sh).value.trim(), foto});
       if(!sid) students.push(s);
       students.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-      if(saveStudents()){ closeSheet(); render(); toast('Guardado'); }
+      if(saveStudents()){ closeSheet(); render(); toast(s.tel && !validPhone(s.tel) ? 'Guardado, pero revisa el WhatsApp: deben ser 8 dígitos' : 'Guardado'); }
     };
     const d = $('#eDel', sh); if(d) d.onclick = () => confirmSheet('Eliminar estudiante', `¿Eliminar a <b>${esc(titleCase(s.nombre))}</b>? Sus registros de asistencia también se ocultarán.`, 'Eliminar', () => { students = students.filter(x => x.id !== sid); saveStudents(); render(); }, true);
   });

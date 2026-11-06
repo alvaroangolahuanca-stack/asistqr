@@ -1,4 +1,4 @@
-const CACHE = 'asistqr-v3';
+const CACHE = 'asistqr-v4';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './vendor/jsQR.js', './vendor/qrcode.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-180.png', './icons/favicon.png'];
 
