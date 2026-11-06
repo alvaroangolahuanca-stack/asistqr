@@ -131,7 +131,7 @@ h3{font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;c
 @keyframes up{from{transform:translateY(30px);opacity:.6}}
 @keyframes fade{from{opacity:0}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:80;font-weight:600;max-width:calc(100% - 32px);text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast{position:fixed;left:50%;top:calc(76px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:80;font-weight:600;max-width:calc(100% - 32px);text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .estbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .estbtns .btn{min-height:56px;font-weight:700}
 .estbtns .P{background:var(--ok-bg);border-color:var(--ok-bg);color:var(--ok)}
@@ -228,7 +228,7 @@ td.cP{color:var(--ok);font-weight:700} td.cT{color:var(--late);font-weight:700} 
    AsistQR 10 F — control de asistencia con QR
    Los datos se guardan en el propio celular (localStorage).
    ========================================================= */
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.4';
 // Llave pública del administrador (dueño). Solo quien tiene la clave maestra puede crear códigos.
 const ADMIN_PUB = {kty:'EC',crv:'P-256',x:'cNRSCzlm58bkhWh_sVceoD0FmkWqbmHwZIT42xiNquo',y:'4s97MZUcwfYX2LCWr3vckrdMTZi32m1DMIlC5pk0gKI',ext:true};
 
@@ -242,7 +242,7 @@ function defaultCfg(){
   return {
     ue:'', nivel:'', grado:'', maestro:'', ciudad:'', gestion:String(new Date().getFullYear()),
     hora:'08:30', tol:0, logoUE:'', logoGrado:'', color:'#C8102E',
-    auto:true, autoMs:2500, cam:'environment',
+    auto:true, autoMs:2500, cam:'environment', waApp:'auto',
     msgP:'✅ *{ue}* – {grado}\nEstimado(a) padre/madre de familia: {hijo} *{estudiante}* registró su ENTRADA el {fecha} a las *{hora}*.\n_AsistQR – Prof. {maestro}_',
     msgT:'⏰ *{ue}* – {grado}\nEstimado(a) padre/madre de familia: {hijo} *{estudiante}* llegó con RETRASO el {fecha} a las *{hora}* (hora de entrada: {entrada}).\n_AsistQR – Prof. {maestro}_',
     msgF:'❌ *{ue}* – {grado}\nEstimado(a) padre/madre de familia: {hijo} *{estudiante}* NO ASISTIÓ a clases el {fecha}. Si tiene alguna justificación, por favor comuníquese con el maestro.\n_AsistQR – Prof. {maestro}_',
@@ -289,7 +289,17 @@ function baseURL(){ return location.origin + location.pathname.replace(/index\.h
 let toastT;
 function toast(msg){ let t = $('.toast'); if(!t){ t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); } t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
 async function copyText(txt){ try{ await navigator.clipboard.writeText(txt); toast('Copiado'); }catch(e){ const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); toast('Copiado'); }catch(_){ toast('Mantén presionado el texto para copiar'); } ta.remove(); } }
-function openWA(phone, text){ const p = phoneWA(phone); const url = (p ? `https://wa.me/${p}` : 'https://wa.me/') + '?text=' + encodeURIComponent(text); window.open(url, '_blank'); }
+const isAndroid = () => /android/i.test(navigator.userAgent);
+function openWA(phone, text){
+  const p = phoneWA(phone); const url = (p ? `https://wa.me/${p}` : 'https://wa.me/') + '?text=' + encodeURIComponent(text);
+  const app = (typeof cfg !== 'undefined' && cfg.waApp) || 'auto';
+  if(app !== 'auto' && isAndroid()){
+    const pkg = app === 'business' ? 'com.whatsapp.w4b' : 'com.whatsapp';
+    location.href = `intent://send?${p ? 'phone=' + p + '&' : ''}text=${encodeURIComponent(text)}#Intent;scheme=whatsapp;package=${pkg};S.browser_fallback_url=${encodeURIComponent(url)};end`;
+    return;
+  }
+  window.open(url, '_blank');
+}
 function loadScript(src){ return new Promise((ok, no) => { if($(`script[src="${src}"]`)) return ok(); const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
 function downloadBlob(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 
@@ -381,10 +391,8 @@ function fillTpl(tpl, s, r, d){
 }
 function msgFor(s, d=curDate){ const r = recOf(s.id, d); if(!r) return ''; return fillTpl(cfg['msg' + r.e] || '', s, r, d); }
 function validPhone(p){ const d = String(p||'').replace(/\D/g,''); return (d.length === 8 && /^[67]/.test(d)) || (d.length === 11 && /^591[67]/.test(d)) || (d.length >= 10 && !d.startsWith('591') && d.length <= 15); }
-function sendWA(sid, d=curDate, onDone){
-  const s = students.find(x => x.id === sid); if(!s) return; const r = recOf(sid, d); if(!r) return;
-  const done = () => { r.wa = true; saveAtt(); onDone && onDone(); };
-  if(validPhone(s.tel)){ openWA(s.tel, msgFor(s, d)); done(); return; }
+function askPhone(s, onSend){
+  if(validPhone(s.tel)){ onSend(s.tel); return; }
   sheet(`<h3>Falta el WhatsApp</h3><p style="margin:0"><b>${esc(titleCase(s.nombre))}</b> ${s.tel ? `tiene un número que no parece válido (<b>${esc(s.tel)}</b>)` : 'no tiene número guardado'}. Escríbelo una vez y quedará guardado para siempre.</p>
   <div class="field"><label for="nwTel">WhatsApp del padre, madre o tutor</label><input id="nwTel" inputmode="tel" placeholder="Ej.: 71234567" value="${esc(s.tel||'')}"></div>
   <div class="field"><label for="nwTut">Nombre del tutor (opcional)</label><input id="nwTut" value="${esc(s.tutor||'')}"></div>
@@ -393,9 +401,13 @@ function sendWA(sid, d=curDate, onDone){
   <button class="btn block" id="nwPick">Elegir el contacto en WhatsApp</button>`, sh => {
     const t = $('#nwTel', sh); setTimeout(() => t.focus(), 150);
     $('#nwGo', sh).onclick = () => { if(!validPhone(t.value)){ $('#nwErr', sh).textContent = 'Revisa el número: deben ser 8 dígitos y empezar con 6 o 7 (ej.: 71234567).'; return; }
-      s.tel = t.value.trim(); s.tutor = $('#nwTut', sh).value.trim() || s.tutor; saveStudents(); closeSheet(); openWA(s.tel, msgFor(s, d)); done(); };
-    $('#nwPick', sh).onclick = () => { closeSheet(); openWA('', msgFor(s, d)); done(); };
+      s.tel = t.value.trim(); s.tutor = $('#nwTut', sh).value.trim() || s.tutor; saveStudents(); closeSheet(); onSend(s.tel); };
+    $('#nwPick', sh).onclick = () => { closeSheet(); onSend(''); };
   });
+}
+function sendWA(sid, d=curDate, onDone){
+  const s = students.find(x => x.id === sid); if(!s) return; const r = recOf(sid, d); if(!r) return;
+  askPhone(s, tel => { openWA(tel, msgFor(s, d)); r.wa = true; saveAtt(); onDone && onDone(); });
 }
 
 /* ---------- Activación y códigos ---------- */
@@ -775,11 +787,13 @@ function vEst(){
   ${students.length && (sinTel || sinCI) ? `<div class="banner" style="font-weight:500">${sinCI ? `<b>${sinCI}</b> sin C.I. ` : ''}${sinCI && sinTel ? '· ' : ''}${sinTel ? `<b>${sinTel}</b> sin WhatsApp del tutor` : ''}. Toca un estudiante para completar sus datos.</div>` : ''}
   <div class="search field"><span>${I.search}</span><input id="stq" placeholder="Buscar" value="${esc(stuQuery)}" autocomplete="off"></div>
   ${l.length ? `<div class="list">${l.map((s, i) => `<div class="item" data-s="${s.id}">${avatar(s)}<div class="nm"><b>${esc(titleCase(s.nombre))}</b><small>${s.ci ? 'C.I. ' + esc(s.ci) : 'Sin C.I.'} · ${s.tel ? esc(s.tel) : 'sin WhatsApp'}</small></div><span class="hint num">${students.indexOf(s) + 1}</span></div>`).join('')}</div>` : `<div class="card soft empty"><b>Lista vacía</b>Agrega estudiantes uno por uno o pega tu lista desde Excel.</div>`}
-  <div class="grid2"><button class="btn" id="pasteL">Pegar lista desde Excel</button><button class="btn" onclick="go('car')">${I.card} Carnets</button></div>`;
+  <div class="grid2"><button class="btn" id="pasteL">Pegar lista desde Excel</button><button class="btn" onclick="go('car')">${I.card} Carnets</button></div>
+  <button class="btn block" id="vcf">${I.users} Guardar padres en los contactos del celular</button>`;
 }
 function bindEst(){
   $('#addS').onclick = () => editStudent(null);
   $('#pasteL').onclick = pasteList;
+  $('#vcf').onclick = exportContacts;
   const q = $('#stq'); q.oninput = () => { stuQuery = q.value.toLowerCase().trim(); const pos = q.selectionStart; render(); const n = $('#stq'); n.focus(); n.setSelectionRange(pos, pos); };
   $$('.item[data-s]').forEach(el => el.onclick = () => editStudent(el.dataset.s));
 }
@@ -808,6 +822,19 @@ function editStudent(sid){
     };
     const d = $('#eDel', sh); if(d) d.onclick = () => confirmSheet('Eliminar estudiante', `¿Eliminar a <b>${esc(titleCase(s.nombre))}</b>? Sus registros de asistencia también se ocultarán.`, 'Eliminar', () => { students = students.filter(x => x.id !== sid); saveStudents(); render(); }, true);
   });
+}
+function exportContacts(){
+  const list = students.filter(s => validPhone(s.tel));
+  if(!list.length){ toast('Primero guarda el WhatsApp de los padres (toca cada estudiante)'); return; }
+  const vesc = t => String(t||'').replace(/\\/g,'\\\\').replace(/[,;]/g, m => '\\' + m).replace(/\n/g,' ');
+  const grado = (cfg.grado || '').replace(/\s+/g,'');
+  const cards = list.map(s => { const est = titleCase(s.nombre);
+    const fn = s.tutor ? `${titleCase(s.tutor)} (PP.FF. ${est} ${grado})` : `PP.FF. ${est} ${grado}`;
+    return ['BEGIN:VCARD','VERSION:3.0',`FN:${vesc(fn)}`,`N:${vesc(fn)};;;;`,`TEL;TYPE=CELL:+${phoneWA(s.tel)}`,`ORG:${vesc(cfg.ue)}`,`NOTE:${vesc('Estudiante: ' + est + ' – ' + cfg.grado)}`,'END:VCARD'].join('\r\n'); }).join('\r\n');
+  const blob = new Blob([cards + '\r\n'], {type:'text/vcard'}); const name = `Padres_${grado || 'curso'}.vcf`;
+  sheet(`<h3>Guardar en contactos</h3><p style="margin:0">Se guardarán <b>${list.length}</b> padres en los contactos de tu celular, con el nombre del estudiante y el curso. Así aparecen con su nombre en <b>WhatsApp</b> y en <b>WhatsApp Business</b>.</p>
+  <p class="hint" style="margin:0">Toca el botón y elige <b>Contactos</b>. Si se descarga como archivo, ábrelo desde la notificación o desde <b>Descargas</b> y elige <b>Importar</b>. ${students.length - list.length ? `<br>${students.length - list.length} estudiantes no tienen número y no se incluyen.` : ''}</p>
+  <button class="btn pri big block" id="vcGo">${I.users} Guardar contactos</button>`, sh => { $('#vcGo', sh).onclick = () => { shareOrDownload(blob, name); closeSheet(); }; });
 }
 function pasteList(){
   sheet(`<h3>Pegar lista</h3><p class="hint" style="margin:0">Copia las columnas desde Excel y pégalas aquí, una fila por estudiante, en este orden:<br><b>Apellidos y nombres · C.I. · RUDE · WhatsApp · Género (M/F)</b>. Solo el nombre es obligatorio.</p>
@@ -906,12 +933,12 @@ async function summaryText(s){
   return `📊 *Resumen de asistencia – ${cap(MESES[m-1])} ${y}*\n${cfg.ue} – ${cfg.grado}\nEstudiante: *${titleCase(s.nombre)}*\n\n✅ Presente: ${st.P}\n⏰ Tarde: ${st.T}\n❌ Faltas: ${st.F}\n📝 Licencias: ${st.L}\nAsistencia: *${st.tot ? st.pct + '%' : '—'}*` +
     (link ? `\n\nVea el calendario completo en el portal de padres (ingrese con el C.I. de ${hijoDe(s)}):\n${link}` : '') + `\n\n_Prof. ${titleCase(cfg.maestro)}_`;
 }
-async function sendSummary(s){ if(!s) return; if(!normCI(s.ci)) toast('Sin C.I.: el mensaje irá sin enlace al portal'); openWA(s.tel, await summaryText(s)); }
+async function sendSummary(s, onDone){ if(!s) return; if(!normCI(s.ci)) toast('Sin C.I.: el mensaje irá sin enlace al portal'); const txt = await summaryText(s); askPhone(s, tel => { openWA(tel, txt); onDone && onDone(); }); }
 function waMonthQueue(){
   sheet(`<h3>Resúmenes del mes</h3><p class="hint" style="margin:0">Toca cada botón para abrir WhatsApp con el resumen de ese estudiante.</p>
   <div class="list">${students.map(s => `<div class="item" style="cursor:default">${avatar(s)}<div class="nm"><b>${esc(titleCase(s.nombre))}</b><small>${s.tel ? esc(s.tel) : 'sin número'}${s.ci ? '' : ' · sin C.I.'}</small></div><button class="wab" data-m="${s.id}">${I.wa}</button></div>`).join('')}</div>
   <button class="btn block" onclick="closeSheet()">Listo</button>`, sh => {
-    $$('[data-m]', sh).forEach(b => b.onclick = async () => { await sendSummary(students.find(s => s.id === b.dataset.m)); b.classList.add('done'); b.innerHTML = I.check; });
+    $$('[data-m]', sh).forEach(b => b.onclick = async () => { const st = students.find(s => s.id === b.dataset.m); const direct = validPhone(st.tel); await sendSummary(st, direct ? null : waMonthQueue); if(direct){ b.classList.add('done'); b.innerHTML = I.check; } });
   });
 }
 async function exportXLS(){
@@ -978,6 +1005,9 @@ function vCfg(){
   <div class="row"><div class="logoprev">${cfg.logoUE ? `<img src="${cfg.logoUE}" alt="">` : ''}</div><div class="stack" style="flex:1"><b>Logo de la unidad educativa</b><div class="row"><label class="btn sm">Subir<input type="file" accept="image/*" hidden id="lUE"></label>${cfg.logoUE ? '<button class="btn sm ghost" id="lUEx">Quitar</button>' : ''}</div></div></div>
   <div class="row"><div class="logoprev"><img src="${gradeLogo()}" alt=""></div><div class="stack" style="flex:1"><b>Logo del grado</b><span class="hint">Si no subes uno, se usa una insignia con el nombre del grado.</span><div class="row"><label class="btn sm">Subir<input type="file" accept="image/*" hidden id="lGr"></label>${cfg.logoGrado ? '<button class="btn sm ghost" id="lGrx">Quitar</button>' : ''}</div></div></div>
   <div class="field"><label for="cCol">Color principal (carnets e insignia)</label><div class="row"><input id="cCol" type="color" value="${esc(cfg.color)}" style="width:64px;padding:4px"><span class="hint">Rojo institucional por defecto</span></div></div>
+  <h3>WhatsApp</h3>
+  <div class="field"><label for="cWa">Abrir los mensajes con</label><select id="cWa"><option value="auto" ${cfg.waApp==='auto'?'selected':''}>El que elija el celular</option><option value="business" ${cfg.waApp==='business'?'selected':''}>WhatsApp Business</option><option value="normal" ${cfg.waApp==='normal'?'selected':''}>WhatsApp normal</option></select></div>
+  <span class="hint">Elige “WhatsApp Business” si ahí tienes tus chats con los padres (solo Android).</span>
   <h3>Horario</h3>
   <div class="grid2">${f('cHora','Hora de entrada',cfg.hora,'type="time"')}${f('cTol','Tolerancia (minutos)',cfg.tol,'type="number" min="0" max="60" inputmode="numeric"')}</div>
   <span class="hint">Cámbiala cuando cambie el horario (por ejemplo, horario de invierno). Después de esta hora + tolerancia, el registro es “Tarde”.</span>
@@ -998,7 +1028,7 @@ function bindCfg(){
 }
 function collectCfg(){
   const v = id => $('#' + id) ? $('#' + id).value.trim() : undefined;
-  const map = {ue:'cUE', nivel:'cNiv', grado:'cGr', gestion:'cGes', maestro:'cMa', ciudad:'cCi', color:'cCol', hora:'cHora', tol:'cTol', msgP:'mP', msgT:'mT', msgF:'mF', msgL:'mL'};
+  const map = {ue:'cUE', nivel:'cNiv', grado:'cGr', gestion:'cGes', maestro:'cMa', ciudad:'cCi', color:'cCol', hora:'cHora', tol:'cTol', msgP:'mP', msgT:'mT', msgF:'mF', msgL:'mL', waApp:'cWa'};
   Object.entries(map).forEach(([k, id]) => { const x = v(id); if(x !== undefined) cfg[k] = x; });
   const a = v('cAms'); if(a) cfg.autoMs = Math.max(1, Math.min(10, Number(a) || 2.5)) * 1000;
   cfg.tol = Number(cfg.tol) || 0;
