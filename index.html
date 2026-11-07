@@ -228,7 +228,7 @@ td.cP{color:var(--ok);font-weight:700} td.cT{color:var(--late);font-weight:700} 
    AsistQR 10 F — control de asistencia con QR
    Los datos se guardan en el propio celular (localStorage).
    ========================================================= */
-const APP_VERSION = '1.0.4';
+const APP_VERSION = '1.1.0';
 // Llave pública del administrador (dueño). Solo quien tiene la clave maestra puede crear códigos.
 const ADMIN_PUB = {kty:'EC',crv:'P-256',x:'cNRSCzlm58bkhWh_sVceoD0FmkWqbmHwZIT42xiNquo',y:'4s97MZUcwfYX2LCWr3vckrdMTZi32m1DMIlC5pk0gKI',ext:true};
 
@@ -411,9 +411,25 @@ function sendWA(sid, d=curDate, onDone){
 }
 
 /* ---------- Activación y códigos ---------- */
+/* Códigos cortos (verificados en línea) */
+const LIC_DB = {url:'https://uaevjeijemfaiexhbhkx.supabase.co', key:'sb_publishable_6MDIIa-Bfyx7OEC8MJXPJw_Hvm8ESP-'};
+const LIC_APP = 'asistqr', LIC_PFX = 'AQR';
+const SHORT_RE = /^[A-Z]{3}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+async function licRPC(fn, args){
+  let r; try{ r = await fetch(`${LIC_DB.url}/rest/v1/rpc/${fn}`, {method:'POST', headers:{'apikey':LIC_DB.key, 'Content-Type':'application/json'}, body:JSON.stringify(args)}); }
+  catch(e){ const er = new Error('Sin conexión a internet.'); er.offline = true; throw er; }
+  const j = await r.json().catch(() => null); if(!r.ok){ const er = new Error((j && (j.message || j.hint)) || ('Error ' + r.status)); er.offline = r.status >= 500 || r.status === 0; throw er; } return j;
+}
+function newShortCode(){ const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; const b = new Uint8Array(8); crypto.getRandomValues(b); const c = [...b].map(x => A[x % A.length]).join(''); return `${LIC_PFX}-${c.slice(0,4)}-${c.slice(4)}`; }
+const licMotivo = (m, v) => m === 'vencido' ? `Este código venció${v ? ' el ' + String(v).split('-').reverse().join('/') : ''}. Pide la renovación al administrador.` : m === 'desactivado' ? 'Este código fue desactivado por el administrador.' : 'Código incorrecto. Revisa que esté bien escrito.';
+function cleanCode(code){ code = String(code||'').trim(); const m = code.match(/#c=([^&\s]+)/); if(m) code = decodeURIComponent(m[1]); return code.replace(/\s+/g,''); }
+async function verifyShort(code){
+  let r; try{ r = await licRPC('licencia_verificar', {p_codigo:code, p_app:LIC_APP}); }catch(e){ throw new Error(e.offline ? 'Necesitas internet para activar tu código. Conéctate e intenta de nuevo.' : 'No se pudo verificar el código: ' + e.message); }
+  if(!r || !r.ok) throw new Error(licMotivo(r && r.motivo, r && r.vence));
+  return {role:'teacher', id:code, name:r.nombre || 'Maestro(a)', exp:r.vence ? r.vence.replace(/-/g,'') : '0', plan:r.plan || '', code, short:true};
+}
 async function verifyCode(code){
-  code = String(code||'').trim(); const m = code.match(/#c=([^&\s]+)/); if(m) code = m[1];
-  code = code.replace(/\s+/g,'');
+  code = cleanCode(code); if(SHORT_RE.test(code.toUpperCase())) return verifyShort(code.toUpperCase());
   const [p, s] = code.split('.'); if(!p || !s) throw new Error('El código no tiene el formato correcto.');
   let okSig = false;
   try{ const key = await crypto.subtle.importKey('jwk', ADMIN_PUB, {name:'ECDSA', namedCurve:'P-256'}, false, ['verify']);
@@ -445,7 +461,9 @@ async function makeCode(name, exp){
 async function checkLicense(){
   if(!lic) return false;
   try{
-    if(lic.role === 'owner') await verifyMaster(lic.key); else { const v = await verifyCode(lic.code); lic.exp = v.exp; }
+    if(lic.role === 'owner') await verifyMaster(lic.key);
+    else if(lic.short){ try{ const r = await licRPC('licencia_verificar', {p_codigo:lic.code, p_app:LIC_APP}); if(r && !r.ok) throw new Error(licMotivo(r.motivo, r.vence)); if(r && r.ok){ lic.exp = r.vence ? r.vence.replace(/-/g,'') : '0'; lic.name = r.nombre || lic.name; LS.set('aqr_lic', lic); } }catch(e){ if(e.offline) return true; throw e; } return true; }
+    else { const v = await verifyCode(lic.code); lic.exp = v.exp; }
   }catch(e){ lockout(e.message); return false; }
   try{ const r = await fetch('revocados.json', {cache:'no-store'}); if(r.ok){ const j = await r.json(); if((j.ids||[]).includes(lic.id)){ lockout('Este código fue desactivado por el administrador.'); return false; } } }catch(e){}
   return true;
@@ -598,7 +616,7 @@ function vActivar(){
   return `<main style="padding-top:calc(20px + env(safe-area-inset-top,0px))">
   <div class="row"><button class="iconbtn" onclick="go('welcome')" aria-label="Volver">${I.left}</button><h2>Acceso de maestros</h2></div>
   <div class="card soft stack"><p style="margin:0">Para usar AsistQR necesitas un <b>código personal</b> que entrega el administrador. Si te enviaron un enlace, solo ábrelo y se activa solo.</p></div>
-  <div class="field"><label for="acCode">Código de acceso</label><textarea id="acCode" placeholder="Pega aquí tu código o enlace" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea></div>
+  <div class="field"><label for="acCode">Código de acceso</label><textarea id="acCode" placeholder="Escribe tu código (ej.: AQR-7K2M-QX9P) o pega el enlace" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea></div>
   <button class="btn pri big block" id="acGo">${I.lock} Activar</button>
   <p class="hint" id="acErr" style="color:var(--abs);font-weight:600"></p>
   <p class="hint">El administrador puede pegar aquí su <b>clave maestra</b> (empieza con AQR-ADMIN-).</p></main>`;
@@ -1035,40 +1053,63 @@ function collectCfg(){
 }
 
 /* ---------- ADMINISTRADOR ---------- */
+const masterStr = () => 'AQR-ADMIN-' + lic.key;
+let admList = null, admErr = '';
 function vAdm(){
-  const issued = LS.get('aqr_issued', []); const y = cfg.gestion || new Date().getFullYear();
+  const y = cfg.gestion || new Date().getFullYear(); const old = LS.get('aqr_issued', []);
   return `<div class="row"><button class="iconbtn" onclick="go('mas')" aria-label="Volver">${I.left}</button><h2>Administrador</h2></div>
-  <div class="card soft"><span class="hint">Crea un código personal para cada colega. Cada colega tendrá su propio espacio en su celular: su colegio, sus logos y sus estudiantes. Nadie puede crear códigos sin tu clave maestra.</span></div>
+  <div class="card soft"><span class="hint">Crea un código corto para cada colega (ej.: <b>AQR-7K2M-QX9P</b>). Cada colega tendrá su propio espacio en su celular. Puedes desactivarlo o extenderlo cuando quieras.</span></div>
   <div class="field"><label for="aName">Nombre del colega</label><input id="aName" placeholder="Ej.: Prof. María Quispe"></div>
   <div class="field"><label for="aExp">Válido hasta</label><input id="aExp" type="date" value="${y}-12-31"></div>
   <button class="btn pri big block" id="aGen">${I.plus} Crear código</button>
   <div id="aOut"></div>
-  <h3>Códigos entregados</h3>
-  ${issued.length ? `<div class="list">${issued.slice().reverse().map(c => `<div class="item" style="cursor:default"><div class="nm"><b>${esc(c.name)}</b><small>ID ${c.id} · hasta ${esc(c.exp || 'sin límite')}${c.rev ? ' · <span style="color:var(--abs);font-weight:700">desactivado</span>' : ''}</small></div><button class="btn sm" data-share="${c.id}">Reenviar</button>${c.rev ? '' : `<button class="btn sm ghost" data-rev="${c.id}">Desactivar</button>`}</div>`).join('')}</div>` : '<p class="hint" style="margin:0">Aún no creaste códigos.</p>'}
-  <div id="revBox"></div>`;
+  <h3>Códigos entregados</h3><div id="aList"><p class="hint" style="margin:0">Cargando…</p></div>
+  ${old.length ? `<details><summary class="hint" style="cursor:pointer;font-weight:700">Códigos antiguos (largos) · ${old.length}</summary><div class="list" style="margin-top:8px">${old.slice().reverse().map(c => `<div class="item" style="cursor:default"><div class="nm"><b>${esc(c.name)}</b><small>hasta ${esc(c.exp || 'sin límite')}${c.rev ? ' · desactivado' : ''}</small></div><button class="btn sm" data-share="${c.id}">Reenviar</button>${c.rev ? '' : `<button class="btn sm ghost" data-rev="${c.id}">Desactivar</button>`}</div>`).join('')}</div></details><div id="revBox"></div>` : ''}`;
 }
+function drawAdmList(){
+  const box = $('#aList'); if(!box) return; const t = today();
+  if(admErr){ box.innerHTML = `<p class="hint" style="margin:0;color:var(--abs);font-weight:600">${esc(admErr)}</p>`; return; }
+  if(!admList || !admList.length){ box.innerHTML = '<p class="hint" style="margin:0">Aún no creaste códigos cortos.</p>'; return; }
+  box.innerHTML = `<div class="list">${admList.map(c => { const venc = c.vence && c.vence < t; const st = !c.activo ? '<b style="color:var(--abs)">desactivado</b>' : venc ? '<b style="color:var(--abs)">vencido</b>' : c.usado ? '<b style="color:var(--ok)">en uso</b>' : 'sin usar';
+    return `<div class="item" style="cursor:default;flex-wrap:wrap"><div class="nm" style="min-width:160px"><b>${esc(c.nombre || '')}</b><small><span style="font-family:ui-monospace,monospace;font-weight:700">${esc(c.codigo)}</span> · hasta ${esc(c.vence ? c.vence.split('-').reverse().join('/') : 'sin límite')} · ${st}</small></div>
+    <div class="row" style="gap:6px"><button class="btn sm" data-sc="${esc(c.codigo)}">Enviar</button><button class="btn sm ghost" data-ext="${esc(c.codigo)}">Extender</button><button class="btn sm ghost" data-tg="${esc(c.codigo)}">${c.activo ? 'Desactivar' : 'Activar'}</button></div></div>`; }).join('')}</div>`;
+  $$('[data-sc]', box).forEach(b => b.onclick = () => { const c = admList.find(x => x.codigo === b.dataset.sc); showCode({name:c.nombre, code:c.codigo, exp:c.vence}); });
+  $$('[data-tg]', box).forEach(b => b.onclick = async () => { const c = admList.find(x => x.codigo === b.dataset.tg);
+    try{ await licRPC('licencia_cambiar', {p_app:LIC_APP, p_maestra:masterStr(), p_codigo:c.codigo, p_activo:!c.activo, p_vence:null, p_plan:null}); toast(c.activo ? 'Código desactivado: se bloquea al abrir la app con internet' : 'Código activado'); loadAdmList(); }catch(e){ toast('No se pudo cambiar: ' + e.message); } });
+  $$('[data-ext]', box).forEach(b => b.onclick = () => { const c = admList.find(x => x.codigo === b.dataset.ext);
+    sheet(`<h3>Extender código</h3><p style="margin:0"><b>${esc(c.nombre || '')}</b> · ${esc(c.codigo)}</p><div class="field"><label for="exD">Nueva fecha de vencimiento</label><input id="exD" type="date" value="${esc(c.vence || today())}"></div><button class="btn pri block" id="exGo">Guardar</button>`, sh => {
+      $('#exGo', sh).onclick = async () => { try{ await licRPC('licencia_cambiar', {p_app:LIC_APP, p_maestra:masterStr(), p_codigo:c.codigo, p_activo:true, p_vence:$('#exD', sh).value || null, p_plan:null}); closeSheet(); toast('Código extendido'); loadAdmList(); }catch(e){ toast('No se pudo guardar: ' + e.message); } };
+    }); });
+}
+async function loadAdmList(){ try{ admList = await licRPC('licencia_listar', {p_app:LIC_APP, p_maestra:masterStr()}); admErr = ''; }catch(e){ admErr = e.offline ? 'Sin conexión: no se puede mostrar la lista ahora.' : 'No se pudo cargar la lista: ' + e.message; } drawAdmList(); }
 function bindAdm(){
+  loadAdmList();
   $('#aGen').onclick = async () => {
     const name = $('#aName').value.trim(); if(!name){ toast('Escribe el nombre del colega'); return; }
-    const exp = $('#aExp').value;
-    try{ const {id, code} = await makeCode(name, exp); const issued = LS.get('aqr_issued', []); issued.push({id, name, exp, code, date:today()}); LS.set('aqr_issued', issued); render(); showCode(issued[issued.length - 1]); }
-    catch(e){ toast('No se pudo crear el código'); }
+    const exp = $('#aExp').value; const btn = $('#aGen'); btn.disabled = true;
+    try{ let code; for(let i = 0; i < 3; i++){ code = newShortCode(); try{ await licRPC('licencia_crear', {p_app:LIC_APP, p_maestra:masterStr(), p_codigo:code, p_nombre:name, p_plan:'', p_vence:exp || null}); break; }catch(e){ if(e.offline || i === 2 || !/duplicate|unique/i.test(e.message)) throw e; } }
+      $('#aName').value = ''; showCode({name, code, exp}); loadAdmList(); }
+    catch(e){
+      if(e.offline){ try{ const {id, code} = await makeCode(name, exp); const issued = LS.get('aqr_issued', []); issued.push({id, name, exp, code, date:today()}); LS.set('aqr_issued', issued); showCode({name, code, exp}); toast('Sin internet: se creó un código largo que funciona igual'); }catch(_){ toast('No se pudo crear el código'); } }
+      else toast('No se pudo crear el código: ' + e.message);
+    }
+    btn.disabled = false;
   };
   $$('[data-share]').forEach(b => b.onclick = () => showCode(LS.get('aqr_issued', []).find(c => c.id === b.dataset.share)));
-  $$('[data-rev]').forEach(b => b.onclick = () => confirmSheet('Desactivar código', 'El código dejará de funcionar cuando se actualice la lista de códigos desactivados en el sitio web (archivo revocados.json).', 'Desactivar', () => { const is = LS.get('aqr_issued', []); is.forEach(c => { if(c.id === b.dataset.rev) c.rev = true; }); LS.set('aqr_issued', is); render(); showRevoked(); }, true));
+  $$('[data-rev]').forEach(b => b.onclick = () => confirmSheet('Desactivar código antiguo', 'Los códigos antiguos se desactivan actualizando el archivo revocados.json del sitio web.', 'Desactivar', () => { const is = LS.get('aqr_issued', []); is.forEach(c => { if(c.id === b.dataset.rev) c.rev = true; }); LS.set('aqr_issued', is); render(); showRevoked(); }, true));
 }
 function showCode(c){
-  const link = baseURL() + '#c=' + c.code;
-  const msg = `Hola ${c.name}, te comparto *AsistQR*, la app de control de asistencia con QR.\n\n1) Abre este enlace en tu celular (se activa solo):\n${link}\n\n2) Instálala: menú ⋮ → “Instalar aplicación” (Android) o Compartir → “Agregar a inicio” (iPhone).\n\nEste código es personal; por favor no lo compartas.`;
+  const link = baseURL() + '#c=' + c.code; const short = SHORT_RE.test(c.code);
+  const msg = `Hola ${c.name}, te comparto *AsistQR*, la app de control de asistencia con QR.\n\n1) Abre este enlace en tu celular (se activa solo):\n${link}\n${short ? `\nO entra a ${baseURL()} → "Soy maestro(a)" y escribe tu código: *${c.code}*\n` : ''}\n2) Instálala: menú ⋮ → “Instalar aplicación” (Android) o Compartir → “Agregar a inicio” (iPhone).\n\nEste código es personal; por favor no lo compartas.`;
   const out = $('#aOut'); if(!out) return;
-  out.innerHTML = `<div class="card stack"><b>Código de ${esc(c.name)}</b><div class="code">${esc(c.code)}</div><div class="grid2"><button class="btn wa" id="cWA">${I.wa} Enviar</button><button class="btn" id="cCp">Copiar enlace</button></div></div>`;
-  $('#cWA').onclick = () => openWA('', msg); $('#cCp').onclick = () => copyText(link);
+  out.innerHTML = `<div class="card stack"><b>Código de ${esc(c.name)}</b><div class="code" style="${short ? 'font-size:24px;text-align:center;letter-spacing:2px;font-weight:800' : ''}">${esc(c.code)}</div><div class="grid2"><button class="btn wa" id="cWA">${I.wa} Enviar</button><button class="btn" id="cCp">Copiar código</button></div></div>`;
+  $('#cWA').onclick = () => openWA('', msg); $('#cCp').onclick = () => copyText(c.code);
   out.scrollIntoView({behavior:'smooth', block:'center'});
 }
 function showRevoked(){
   const ids = LS.get('aqr_issued', []).filter(c => c.rev).map(c => c.id); const json = JSON.stringify({ids});
   const box = $('#revBox'); if(!box) return;
-  box.innerHTML = `<div class="card stack"><b>Para que el cambio surta efecto</b><span class="hint">Reemplaza el contenido del archivo <b>revocados.json</b> de tu sitio web por este texto. La app de ese colega se bloqueará la próxima vez que se abra con internet.</span><div class="code">${esc(json)}</div><button class="btn" id="rvCp">Copiar</button></div>`;
+  box.innerHTML = `<div class="card stack"><b>Último paso</b><span class="hint">Envíame este texto para actualizar el archivo revocados.json del sitio.</span><div class="code">${esc(json)}</div><button class="btn" id="rvCp">Copiar</button></div>`;
   $('#rvCp').onclick = () => copyText(json);
 }
 
