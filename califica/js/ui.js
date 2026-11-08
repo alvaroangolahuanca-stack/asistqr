@@ -102,11 +102,13 @@ function vWelcome(){
   <div class="field"><label for="acCode">Código de acceso</label><input id="acCode" placeholder="Ej.: CQR-7K2M-QX9P" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
   <button class="btn pri big block" id="acGo">${I.lock} Ingresar</button><p class="err" id="acErr"></p>
   <p class="hint">El administrador puede pegar aquí su clave maestra.</p></div>
+  <button class="btn block instbtn" id="inst" hidden>${I.install} Instalar la aplicación en este celular</button>
   <div class="card soft stack"><b>¿Qué puedes hacer?</b><span class="hint">• Crear evaluaciones e imprimir hojas con QR y círculos para rellenar.<br>• Escanear y calificar en segundos, sin internet.<br>• Planillas por área y trimestre, centralizador y Excel.<br>• Tus datos se guardan solo en tu celular.</span></div></main>`;
 }
 function bindWelcome(){
   const go2 = async () => { const v = $('#acCode').value.trim(); $('#acErr').textContent = ''; if(!v){ $('#acErr').textContent = 'Escribe tu código.'; return; }
     $('#acGo').disabled = true; try{ await activate(v); }catch(e){ $('#acErr').textContent = e.message || 'Código inválido.'; } $('#acGo').disabled = false; };
+  if(installEvt) $('#inst').hidden = false; $('#inst').onclick = () => { if(installEvt){ installEvt.prompt(); installEvt = null; $('#inst').hidden = true; } };
   $('#acGo').onclick = go2; $('#acCode').onkeydown = e => { if(e.key === 'Enter') go2(); };
 }
 async function activate(v){
