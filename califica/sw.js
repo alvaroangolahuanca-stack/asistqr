@@ -1,4 +1,4 @@
-const CACHE = 'califica-v2';
+const CACHE = 'califica-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './js/core.js', './js/ui.js', './js/hoja.js', './js/omr.js', './js/excel.js',
   './vendor/jsQR.js', './vendor/qrcode.js', './vendor/jspdf.umd.min.js', './vendor/xlsx.bundle.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-180.png', './icons/favicon.png'];

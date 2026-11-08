@@ -113,7 +113,7 @@ function bindWelcome(){
 }
 async function activate(v){
   const l = /^(AQR|CQR)-ADMIN-/i.test(v.trim()) ? await verifyMaster(v) : await verifyCode(v);
-  lic = l; LS.set('cqr_lic', lic); route = 'ini'; render();
+  lic = l; LS.set('cqr_lic', lic); route = 'ini'; render(); pendingRestore();
   toast(lic.role === 'owner' ? 'Bienvenido, administrador' : `Bienvenido(a), ${lic.name}`);
 }
 
@@ -149,7 +149,7 @@ function bindWiz(){
     bindSwatches('wCol', col => { cfg.color = col; saveCfg(); applyTheme(); });
     $('#wLogoB').onclick = () => pickFile('image/*', async f => { try{ keep(); cfg.logoUE = await shrinkLogo(f); saveCfg(); render(); }catch(e){ toast(e.message); } });
     if($('#wLogoX')) $('#wLogoX').onclick = () => { keep(); cfg.logoUE = ''; saveCfg(); render(); };
-    $('#wRest').onclick = () => pickFile('.json,application/json', restoreFile);
+    $('#wRest').onclick = () => pickFile('', restoreFile);
     $('#wNext').onclick = () => { keep(); if(!cfg.ue){ toast('Escribe el nombre de la unidad educativa'); return; } wiz.step = 2; render(); };
   } else if(wiz.step === 2){
     bindCursoForm(c);
@@ -854,8 +854,21 @@ VIEWS.bk = {v(){
   <button class="btn block" id="bkIn">Restaurar respaldo</button>`;
 }, b(){
   $('#bkOut').onclick = () => shareOrDownload(new Blob([JSON.stringify(backupData())], {type:'application/json'}), `CalificaQR_respaldo_${fileName(cursoCorto())}_${today()}.json`);
-  $('#bkIn').onclick = () => pickFile('.json,application/json', restoreFile);
+  $('#bkIn').onclick = () => pickFile('', restoreFile);
 }};
+/* Restaurar desde un enlace privado (datos cifrados; la llave va solo en el enlace) */
+async function pendingRestore(){
+  const pr = LS.get('cqr_pendr', null); if(!pr || !lic) return;
+  confirmSheet('Cargar tus datos', 'Este enlace trae tu unidad educativa, tu curso, la lista de estudiantes y tus evaluaciones. ' + (cfg.setup && cursos.length ? '<b>Se reemplazarán los datos de este celular.</b>' : ''), 'Cargar datos', async () => {
+    try{ toast('Descargando tus datos…');
+      const r = await fetch('r/' + pr.id + '.bin', {cache:'no-store'}); if(!r.ok) throw new Error('No se encontró el archivo de datos.');
+      const buf = new Uint8Array(await r.arrayBuffer());
+      const key = await crypto.subtle.importKey('raw', ub64u(pr.k), 'AES-GCM', false, ['decrypt']);
+      const plain = await crypto.subtle.decrypt({name:'AES-GCM', iv:buf.slice(0, 12)}, key, buf.slice(12));
+      restoreData(JSON.parse(dec.decode(plain))); LS.del('cqr_pendr'); route = 'ini'; render(); toast('¡Datos cargados!');
+    }catch(e){ toast(e.message && !/operation/i.test(e.message) ? e.message : 'No se pudieron cargar los datos. Revisa tu internet.', 4000); }
+  });
+}
 async function restoreFile(f){
   try{ const d = JSON.parse(await f.text()); const go2 = () => { restoreData(d); route = 'ini'; render(); toast('Respaldo restaurado'); };
     if(cfg.setup && cursos.length) confirmSheet('Restaurar respaldo', 'Se reemplazarán todos los datos de este celular por los del archivo.', 'Restaurar', go2); else go2(); }
@@ -931,7 +944,10 @@ function showCode(c){
   applyTheme();
   const m = location.hash.match(/#c=([^&]+)/);
   if(m && !lic){ history.replaceState(null, '', location.pathname); try{ await activate(decodeURIComponent(m[1])); return; }catch(e){ render(); setTimeout(() => { const er = $('#acErr'); if(er) er.textContent = e.message; }, 50); return; } }
+  const rr = location.hash.match(/#r=([a-z0-9]+)&k=([A-Za-z0-9_-]+)/);
+  if(rr){ LS.set('cqr_pendr', {id:rr[1], k:rr[2]}); history.replaceState(null, '', location.pathname); }
   render();
   if(lic) checkLicense();
+  pendingRestore();
   if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
