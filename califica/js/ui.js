@@ -64,7 +64,7 @@ function header(){
 }
 function navHTML(){
   const t = [['ini', 'Inicio', I.home], ['evs', 'Evaluaciones', I.doc], ['scan', 'Escanear', I.scan], ['pla', 'Planillas', I.table], ['mas', 'Más', I.more]];
-  const grp = {evs:['evs', 'ev', 'ed'], pla:['pla', 'cen'], mas:['mas', 'est', 'cfg', 'cur', 'esc', 'adm', 'bk', 'ayu']};
+  const grp = {evs:['evs', 'ev', 'ed', 'tp'], pla:['pla', 'cen'], mas:['mas', 'est', 'cfg', 'cur', 'esc', 'adm', 'bk', 'ayu']};
   return `<div class="in">${t.map(([k, l, ic]) => k === 'scan' ? `<button class="scan" data-go="scan" aria-label="Escanear"><div class="ic">${ic}</div><span>${l}</span></button>`
     : `<button class="${(grp[k] || [k]).includes(route) ? 'on' : ''}" data-go="${k}">${ic}<span>${l}</span></button>`).join('')}</div>`;
 }
@@ -235,9 +235,18 @@ VIEWS.evs = {v(){
   $$('[data-a]').forEach(b => b.onclick = () => { ui.evArea = b.dataset.a; saveUI(); render(); });
 }};
 function newEval(){
+  sheet(`<h3>Nueva evaluación</h3>
+  <button class="choicebtn" id="neImg"><b>${I.img} Subir mi evaluación</b><span>Subes 2 imágenes: la hoja en blanco y la misma con respuestas. La app imprime una copia con QR por estudiante y califica sola.</span><span class="pill ok" style="align-self:flex-start">Recomendado</span></button>
+  <button class="choicebtn" id="neTxt"><b>${I.edit} Escribir las preguntas aquí</b><span>Escribes cada pregunta con su respuesta dentro de la app.</span></button>`, sh => {
+    $('#neImg', sh).onclick = () => { closeSheet(); newEvalOf('img'); };
+    $('#neTxt', sh).onclick = () => { closeSheet(); newEvalOf('txt'); };
+  });
+}
+function newEvalOf(mode){
   const c = curso(); const a = ui.evArea && c.areas.includes(ui.evArea) ? ui.evArea : (ui.area && c.areas.includes(ui.area) ? ui.area : c.areas[0]);
   const ev = {id:uid(6), cid:c.id, a, t:ui.trim, d:'saber', titulo:'', fecha:today(), instr:'', qs:[], lays:[], ver:0};
-  evals.push(ev); saveEvals(); ui.ev = ev.id; saveUI(); go('ed');
+  if(mode === 'img') ev.mode = 'img';
+  evals.push(ev); saveEvals(); ui.ev = ev.id; saveUI(); go(mode === 'img' ? 'tp' : 'ed');
 }
 const curEv = () => evals.find(e => e.id === ui.ev);
 
@@ -249,22 +258,22 @@ VIEWS.ev = {v(){
   <div class="row"><span class="pill pri">${DIMS.find(d => d.k === (ev.d || 'saber')).t} · sobre ${dimMax(ev.d || 'saber')}</span><span class="pill">${(ev.qs || []).length} preguntas · ${evMax(ev)} pts</span></div>
   <div class="stat3"><div><b>${p.done}/${p.tot}</b><span>Calificados</span></div><div><b>${avg !== null ? fmtN(avg) : '–'}</b><span>Promedio</span></div><div><b>${ns.length ? Math.max(...ns) : '–'}</b><span>Nota más alta</span></div></div>
   <div class="grid2"><button class="btn pri" id="evPrint">${I.print} Imprimir hojas</button><button class="btn pri" id="evScan">${I.scan} Escanear</button>
-  <button class="btn" id="evEdit">${I.edit} Preguntas y clave</button><button class="btn" id="evXls">${I.xls} Excel resultados</button></div>
+  <button class="btn" id="evEdit">${I.edit} ${ev.mode === 'img' ? 'Imágenes y clave' : 'Preguntas y clave'}</button><button class="btn" id="evXls">${I.xls} Excel resultados</button></div>
   <div class="row between"><h3>Estudiantes</h3><span class="hint">Toca uno para calificar a mano</span></div>
   ${st.length ? `<div class="list">${st.map(s => { const r = R[s.id]; const sc = r ? evScore(ev, r.m) : null;
     return `<div class="item ${s.ret ? 'est-ret' : ''}" data-st="${s.id}"><div class="av num">${s.n}</div><div class="nm"><b>${esc(s.nombre)}</b><small>${r ? `${fmtN(sc.tot)} de ${sc.max} pts${sc.pend ? ` · <span style="color:var(--warn)">${sc.pend} sin revisar</span>` : ''}` : 'Sin calificar'}</small></div>${r ? `<span class="pill ${sc.nota >= dimMax(ev.d || 'saber') * .51 ? 'ok' : 'bad'}" style="font-size:15px">${sc.nota}</span>` : I.right.replace('<svg', '<svg width="18" height="18"')}</div>`; }).join('')}</div>` : '<div class="card soft empty"><b>Sin estudiantes</b>Agrega tu lista en Más → Estudiantes.</div>'}
   <div class="grid2"><button class="btn ghost" id="evDup">${I.copy} Duplicar</button><button class="btn ghost" id="evDel" style="color:var(--bad)">${I.trash} Eliminar</button></div>`;
 }, b(){
   const ev = curEv(); if(!ev) return;
-  $('#evEdit').onclick = () => go('ed');
-  $('#evPrint').onclick = () => printSheet(ev);
+  $('#evEdit').onclick = () => go(ev.mode === 'img' ? 'tp' : 'ed');
+  $('#evPrint').onclick = () => ev.mode === 'img' ? printTpl(ev) : printSheet(ev);
   $('#evScan').onclick = () => go('scan');
   $('#evXls').onclick = () => withLib('XLSX', () => XL.exportEval(ev));
   $$('[data-st]').forEach(b => b.onclick = () => openReview(ev, students().find(s => s.id === b.dataset.st), null));
-  $('#evDup').onclick = () => { const n = JSON.parse(JSON.stringify(ev)); n.id = uid(6); n.titulo = (ev.titulo || '') + ' (copia)'; n.colId = null; n.lays = []; n.ver = 0; n.qs.forEach(q => q.id = uid(5)); n.qs.forEach((q, i) => { if(q.tipo === 'rel') q.orden = HOJA.relOrder(ev.qs[i]); });
+  $('#evDup').onclick = () => { if(ev.mode === 'img'){ toast('Para otra evaluación con imágenes, usa Nueva evaluación'); return; } const n = JSON.parse(JSON.stringify(ev)); n.id = uid(6); n.titulo = (ev.titulo || '') + ' (copia)'; n.colId = null; n.lays = []; n.ver = 0; n.qs.forEach(q => q.id = uid(5)); n.qs.forEach((q, i) => { if(q.tipo === 'rel') q.orden = HOJA.relOrder(ev.qs[i]); });
     evals.push(n); saveEvals(); ui.ev = n.id; saveUI(); go('ed'); toast('Evaluación duplicada'); };
   $('#evDel').onclick = () => confirmSheet('Eliminar evaluación', `Se borrarán la evaluación, sus resultados y su columna en la planilla de ${esc(areaName(ev.a))}.`, 'Eliminar', () => {
-    evals = evals.filter(e => e.id !== ev.id); delete resp[ev.id]; if(ev.colId){ cols = cols.filter(c => c.id !== ev.colId); delete notas[ev.colId]; }
+    evals = evals.filter(e => e.id !== ev.id); delete resp[ev.id]; if(ev.mode === 'img'){ TPL.del(ev.id + '_b'); TPL.del(ev.id + '_k'); } if(ev.colId){ cols = cols.filter(c => c.id !== ev.colId); delete notas[ev.colId]; }
     saveEvals(); saveResp(); saveCols(); saveNotas(); go('evs'); toast('Evaluación eliminada'); }, true);
 }};
 function withLib(name, fn){ if(window[name] || (name === 'jsPDF' && window.jspdf)) return fn(); toast('Cargando…'); let n = 0; const t = setInterval(() => { if(window[name] || (name === 'jsPDF' && window.jspdf)){ clearInterval(t); fn(); } else if(++n > 50){ clearInterval(t); toast('No se pudo cargar. Revisa tu conexión y vuelve a abrir la app.'); } }, 100); }
@@ -297,6 +306,89 @@ VIEWS.ed = {v(){
   $$('[data-qu]').forEach(b => b.onclick = () => mv(+b.dataset.qu, -1)); $$('[data-qd]').forEach(b => b.onclick = () => mv(+b.dataset.qd, 1));
   $('#edOk').onclick = () => { keep(); if(!ev.titulo){ toast('Escribe el título de la evaluación'); $('#eT').focus(); return; } evCol(ev); recalcEval(ev); go('ev'); };
 }};
+/* ---------- Evaluación propia (imágenes) ---------- */
+let tpState = {an:null, pv:null, busy:false};
+VIEWS.tp = {v(){
+  const ev = curEv(); if(!ev) return back('evs');
+  const c = curso(), has = Object.keys(resp[ev.id] || {}).length;
+  return `<div class="row" style="flex-wrap:nowrap">${back('ev')}<h2>${ev.qs.length ? 'Mi evaluación' : 'Subir mi evaluación'}</h2></div>
+  <div class="field"><label for="eT">Título o tema</label><input id="eT" value="${esc(ev.titulo)}" placeholder="Ej.: Biodiversidad y especies en extinción"></div>
+  <div class="grid2"><div class="field"><label for="eA">Área</label><select id="eA">${c.areas.map(a => `<option value="${a}" ${ev.a === a ? 'selected' : ''}>${esc(areaName(a))}</option>`).join('')}</select></div>
+  <div class="field"><label for="eF">Fecha</label><input id="eF" type="date" value="${esc(ev.fecha)}"></div></div>
+  <div class="grid2"><div class="field"><label for="eTr">Trimestre</label><select id="eTr">${TRIM.map((t, i) => `<option value="${i + 1}" ${ev.t === i + 1 ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+  <div class="field"><label for="eD">Va a la dimensión</label><select id="eD">${['saber', 'hacer'].map(k => `<option value="${k}" ${(ev.d || 'saber') === k ? 'selected' : ''}>${k === 'saber' ? 'Saber' : 'Hacer'} (sobre ${dimMax(k)})</option>`).join('')}</select></div></div>
+  ${has ? `<div class="banner warn">Ya hay ${has} estudiantes calificados. Si cambias la hoja con respuestas, sus notas se recalculan.</div>` : ''}
+  <div class="grid2">
+    <button class="imgpick" id="pB"><span class="lbl">1. Hoja en blanco</span><div class="th" id="thB">${I.img}</div><small>Para los estudiantes</small></button>
+    <button class="imgpick" id="pK"><span class="lbl">2. Hoja con respuestas</span><div class="th" id="thK">${I.img}</div><small>Tu clave</small></button>
+  </div>
+  <p class="hint">Usa imágenes del <b>mismo diseño</b> (la misma hoja, una vacía y otra con las respuestas marcadas en color). Se califican solas las <b>casillas □ marcadas</b> y las preguntas de <b>unir con líneas</b>.</p>
+  <div id="tpRes"></div>
+  <button class="btn okb big block" id="tpOk">${I.check} Guardar</button>`;
+}, async b(){
+  const ev = curEv(); if(!ev) return;
+  const keep = () => { ev.titulo = $('#eT').value.trim(); ev.a = $('#eA').value; ev.fecha = $('#eF').value; ev.t = +$('#eTr').value; ev.d = $('#eD').value; saveEvals(); if(ev.colId || Object.keys(resp[ev.id] || {}).length) evCol(ev); };
+  ['#eT', '#eA', '#eF', '#eTr', '#eD'].forEach(id => $(id).onchange = () => { keep(); if(id === '#eD') recalcEval(ev); });
+  const thumbs = async () => { for(const [w, el] of [['b', '#thB'], ['k', '#thK']]){ const u = await TPL.img(ev.id, w); if(u && $(el)) $(el).innerHTML = `<img src="${u}" alt="">`; } };
+  thumbs(); tpState = {an:null, pv:null, busy:false};
+  const pick = which => pickFile('image/*,.pdf', async f => {
+    if(/pdf/i.test(f.type)){ toast('Por ahora sube la evaluación como imagen (foto o captura). Si la tienes en PDF, haz una captura de pantalla.', 5000); return; }
+    try{ const u = await normImage(f); await TPL.put(ev.id + '_' + which, u); TPL.forget(ev.id, which); if(which === 'b'){ ev.imgVer = (ev.imgVer || 0) + 1; saveEvals(); } await thumbs(); await runAnalysis(ev); }catch(e){ toast(e.message); } });
+  $('#pB').onclick = () => { keep(); pick('b'); }; $('#pK').onclick = () => { keep(); pick('k'); };
+  if(ev.tpl) drawTpRes(ev);
+  $('#tpOk').onclick = async () => { keep(); if(!ev.titulo){ toast('Escribe el título'); $('#eT').focus(); return; }
+    if(!(await TPL.img(ev.id, 'b'))){ toast('Sube la hoja en blanco'); return; } if(!ev.tpl || !ev.qs.length){ toast('Sube la hoja con respuestas'); return; }
+    evCol(ev); recalcEval(ev); go('ev'); toast('Evaluación guardada. Ahora imprime las hojas.'); };
+}};
+async function normImage(file){
+  const im = await loadImg(await readAsDataURL(file)); if(!im) throw new Error('No se pudo abrir la imagen.');
+  const s = Math.min(1, 2000 / im.width), c = document.createElement('canvas'); c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', .9);
+}
+async function runAnalysis(ev){
+  const bU = await TPL.get(ev.id + '_b'), kU = await TPL.get(ev.id + '_k'); if(!bU || !kU) return;
+  const out = $('#tpRes'); if(out) out.innerHTML = '<div class="card soft">Analizando tu evaluación…</div>';
+  try{
+    const an = await TPL.analyze(bU, kU);
+    ev.tpl = {w:an.w, h:an.h, qs:an.qs, written:an.written.length};
+    ev.qs = TPL.toQuestions(an, ev.qs); ev.lays = (ev.lays || []).filter(l => l.layout && l.layout.kind === 'img');
+    saveEvals(); recalcEval(ev); tpState.pv = await TPL.preview(kU, an); drawTpRes(ev);
+  }catch(e){ console.error(e); if(out) out.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+async function drawTpRes(ev){
+  const out = $('#tpRes'); if(!out || !ev.tpl) return;
+  const kU = await TPL.get(ev.id + '_k');
+  if(!tpState.pv && kU){ try{ tpState.pv = await TPL.preview(kU, Object.assign({written:[]}, ev.tpl)); }catch(e){} }
+  const qs = ev.qs;
+  out.innerHTML = `<div class="card stack"><b style="font:700 19px var(--display);text-transform:uppercase">${qs.length ? `Se califican solas: ${qs.length} pregunta${qs.length > 1 ? 's' : ''}` : 'No encontré casillas marcadas ni líneas'}</b>
+    ${qs.map((q, i) => `<div class="row" style="flex-wrap:nowrap"><div class="qn">${i + 1}</div><div style="flex:1;min-width:0"><b>${esc(q.txt)}</b><div class="hint">${q.n > 1 ? `${q.n} partes · puntaje: ${Array.from({length:q.n}, (_, k) => fmtN(escalaPts(q.n, k + 1, qMax(q)))).join(', ')}` : '1 parte'}</div></div>
+      <select data-tpp="${i}" style="border:1.5px solid var(--line);border-radius:10px;padding:8px" aria-label="Puntaje">${[1, 2, 3, 4, 5, 6, 8, 10].map(n => `<option ${qMax(q) === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>`).join('')}
+    <span class="pill pri" style="align-self:flex-start">Total ${evMax(ev)} pts → nota sobre ${dimMax(ev.d || 'saber')}</span>
+    ${ev.tpl.written ? `<div class="banner warn">Hay ${ev.tpl.written} respuesta(s) escritas a mano (recuadros naranjas). Esas no se califican solas; para que cuenten, cámbialas a casillas □ para marcar.</div>` : ''}
+    ${tpState.pv ? `<img src="${tpState.pv}" class="snap" alt="Lo que detectó la app" id="tpPv"><span class="hint">Verde = respuesta correcta detectada · azul = otras opciones · naranja = respuesta escrita.</span>` : ''}</div>`;
+  $$('[data-tpp]', out).forEach(sl => sl.onchange = () => { ev.qs[+sl.dataset.tpp].pts = +sl.value; saveEvals(); recalcEval(ev); drawTpRes(ev); });
+}
+function printTpl(ev){
+  const st = activeStudents();
+  if(!ev.tpl || !ev.qs.length){ toast('Primero sube las dos imágenes de la evaluación'); go('tp'); return; }
+  sheet(`<h3>Imprimir hojas</h3><p class="hint">Se crea un PDF con tu evaluación, una hoja por estudiante (${st.length}), cada una con su nombre, número de lista y código QR.</p>
+  <div class="field"><label for="pPap">Papel</label><select id="pPap"><option value="carta" ${cfg.papel !== 'oficio' ? 'selected' : ''}>Carta</option><option value="oficio" ${cfg.papel === 'oficio' ? 'selected' : ''}>Oficio</option></select></div>
+  <button class="btn pri big block" id="pGo">${I.print} Crear PDF</button><p class="hint">Imprime en tamaño real. No recortes las 4 marcas negras ni el QR.</p>`, s => {
+    $('#pGo', s).onclick = () => withLib('jsPDF', async () => {
+      if(!st.length){ toast('No hay estudiantes en la lista'); return; }
+      cfg.papel = $('#pPap', s).value; saveCfg(); $('#pGo', s).disabled = true; $('#pGo', s).textContent = 'Preparando…';
+      try{
+        const c = cursos.find(x => x.id === ev.cid) || curso(); const ctx = hojaCtx(ev, st.map(x => ({n:x.n, nombre:x.nombre})));
+        const key = 'img|' + cfg.papel + '|' + (ev.imgVer || 0);
+        ev.lays = ev.lays || []; let L = ev.lays.find(l => l.key === key);
+        if(!L){ ev.ver = (ev.lays.reduce((m, l) => Math.max(m, l.ver), 0) || 0) + 1; L = {ver:ev.ver, mode:'nombre', key, layout:null}; ev.lays.push(L); ev.lays = ev.lays.slice(-8); }
+        ev.ver = L.ver;
+        const {doc, layout} = await TPL.buildPDF(ev, ctx, await TPL.get(ev.id + '_b')); L.layout = layout; saveEvals();
+        await shareOrDownload(doc.output('blob'), `${fileName(ev.titulo || 'Evaluacion')}_${cursoCorto(c).replace(/\W+/g, '')}.pdf`); evCol(ev); closeSheet();
+      }catch(e){ console.error(e); toast('No se pudo crear el PDF: ' + e.message); $('#pGo', s).disabled = false; }
+    });
+  });
+}
 function qSummary(q){
   switch(q.tipo){
     case 'sel': return `${(q.ops || []).length} opciones · correcta ${HOJA.LET[q.ok || 0].toUpperCase()}`;
@@ -512,18 +604,36 @@ async function scanPhoto(file){
 function handleScan(r, can){
   const ev = evals.find(e => e.id === r.info.ev), c = cursos.find(x => x.id === ev.cid);
   const L = lookupLayout(r.info).layout;
-  if(!L.pages[r.info.pg] || !L.pages[r.info.pg].b.length){ toast(`La página ${r.info.pg + 1} no tiene círculos: no hace falta escanearla.`); setTimeout(() => { SC.paused = false; loopScan(); }, 1500); return; }
+  if(L.kind !== 'img' && (!L.pages[r.info.pg] || !L.pages[r.info.pg].b.length)){ toast(`La página ${r.info.pg + 1} no tiene círculos: no hace falta escanearla.`); setTimeout(() => { SC.paused = false; loopScan(); }, 1500); return; }
   const est = (c.est || []).find(s => s.n === r.num) || null;
   // vista previa con los círculos leídos
   const sc = Math.min(1, 900 / Math.max(can.width, can.height)), snap = document.createElement('canvas');
   snap.width = Math.round(can.width * sc); snap.height = Math.round(can.height * sc); const x = snap.getContext('2d'); x.drawImage(can, 0, 0, snap.width, snap.height);
-  r.marks.forEach(m => { x.beginPath(); x.arc(m.c[0] * sc, m.c[1] * sc, m.r * sc * 1.25, 0, Math.PI * 2); x.lineWidth = Math.max(2, 3 * sc * 2); x.strokeStyle = m.dbl ? '#E08A00' : m.on ? '#16A34A' : 'rgba(30,120,255,.35)'; x.stroke(); });
+  let flags = [];
+  if(L.kind === 'img'){ const g = TPL.grade(ev, r, L); r.marks = g.marks; flags = g.flags; r.ans = {}; Object.assign(r, {tplM:g.m}); }
   const prev = est && resp[ev.id] && resp[ev.id][est.id] ? JSON.parse(JSON.stringify(resp[ev.id][est.id].m)) : {};
-  const m = Object.assign({}, prev);
+  const m = Object.assign({}, prev, r.tplM || {});
   ev.qs.forEach(q => { const a = r.ans[q.id]; if(!a) return;
     if(q.tipo === 'sel') m[q.id] = a[0] ? a[0].sel : null;
     if(q.tipo === 'vf' || q.tipo === 'rel'){ const arr = Array.isArray(m[q.id]) ? m[q.id].slice() : emptyMark(q); Object.entries(a).forEach(([i, o]) => arr[+i] = o.sel); m[q.id] = arr; } });
-  openReview(ev, est, {snap:snap.toDataURL('image/jpeg', .8), page:r.info.pg, low:r.lowConf, m, fromScan:true});
+  r.marks.forEach(mk => { x.beginPath(); if(mk.seg){ x.moveTo(mk.seg[0][0] * sc, mk.seg[0][1] * sc); x.lineTo(mk.seg[1][0] * sc, mk.seg[1][1] * sc); x.lineWidth = 3; x.strokeStyle = '#16A34A'; x.stroke(); x.beginPath(); }
+    x.arc(mk.c[0] * sc, mk.c[1] * sc, mk.r * sc * 1.25, 0, Math.PI * 2); x.lineWidth = Math.max(2, 3 * sc * 2); x.strokeStyle = mk.dbl ? '#E08A00' : mk.on ? '#16A34A' : 'rgba(30,120,255,.35)'; x.stroke(); });
+  const snapURL = snap.toDataURL('image/jpeg', .8);
+  const sc2 = evScore(ev, m);
+  // Si todo se leyó solo, se guarda sin tocar nada
+  if(est && !sc2.pend && !r.lowConf){ const res = saveResult(ev, est, m); autoCard(ev, est, res, flags, snapURL, m); return; }
+  openReview(ev, est, {snap:snapURL, page:r.info.pg, low:r.lowConf + flags.length, m, fromScan:true});
+}
+function autoCard(ev, est, res, flags, snapURL, m){
+  const box = $('#sbox'); if(!box){ SC.paused = false; return; }
+  const d = document.createElement('div'); d.className = 'autores';
+  d.innerHTML = `<div class="nb num">${est.n}</div><b>${esc(est.nombre)}</b><div class="nt num">${res.nota}<small>/${dimMax(ev.d || 'saber')}</small></div><span class="sub">${fmtN(res.tot)} de ${res.max} puntos · guardado${flags.length ? ' · <b style="color:var(--warn)">marcó dos casillas en ' + flags.length + ' pregunta(s)</b>' : ''}</span>
+    <div class="row" style="justify-content:center"><button class="btn sm" id="arRev">Revisar</button><button class="btn sm pri" id="arNext">Siguiente</button></div><i class="bar"></i>`;
+  box.appendChild(d);
+  let t = setTimeout(next, 2600);
+  function next(){ clearTimeout(t); d.remove(); SC.paused = false; loopScan(); }
+  $('#arNext', d).onclick = next;
+  $('#arRev', d).onclick = () => { clearTimeout(t); d.remove(); openReview(ev, est, {snap:snapURL, page:0, low:0, m, fromScan:true}); };
 }
 let audioCtx;
 function beep(ok){ try{ audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.frequency.value = ok ? 1046 : 220; g.gain.value = .12; o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + .13); }catch(e){} try{ navigator.vibrate && navigator.vibrate(ok ? 70 : [60, 60, 60]); }catch(e){} }
@@ -600,6 +710,8 @@ function revQ(q, i, v, s){
     case 'comp': b = (q.resp || []).map((r, k) => `<div class="ri"><div class="tx">Espacio ${k + 1}<small>Clave: <b>${esc(r)}</b></small></div>${yn(q.id, k, v[k])}</div>`).join('') + quick; break;
     case 'lista': b = `<span class="hint">Aceptadas: <b>${esc((q.resp || []).join(' · ') || '—')}</b></span>` + Array.from({length:+q.n}, (_, k) => `<div class="ri"><div class="tx">Casilla ${L[k]})</div>${yn(q.id, k, v[k])}</div>`).join('') + quick; break;
     case 'abi': b = `${q.resp ? `<span class="hint">Esperado: ${esc(q.resp)}</span>` : ''}<div class="opts">${Array.from({length:qMax(q) + 1}, (_, k) => `<button class="o ${v === k ? 'on key' : ''}" data-ab="${q.id}|${k}">${k}</button>`).join('')}</div>`; break;
+    case 'tpl': { const labs = Array.from({length:q.opts}, (_, o) => q.kind === 'line' ? L[o] : L[o].toUpperCase());
+      b = (q.ok || []).map((ok, k) => ok < 0 ? '' : `<div class="ri"><div class="tx">${q.kind === 'line' ? 'Punto' : 'Fila'} ${k + 1} ${flag(v[k])}<small>Correcta: ${labs[ok]}</small></div>${opts(q.id, k, q.opts, v[k], ok, labs)}</div>`).join(''); break; }
     case 'prob': b = `${q.resp ? `<span class="hint">Respuesta: <b>${esc(q.resp)}</b></span>` : ''}` + q.crit.map((c, k) => `<div class="ri"><div class="tx">${esc(c.t)}<small>${fmtN(c.p)} pts</small></div><div class="yn"><button class="y ${v[k] ? 'on' : ''}" data-cr="${q.id}|${k}" aria-label="Logrado">${I.check}</button></div></div>`).join('') + quick; break;
   }
   return `<div class="rq">${head}${b}</div>`;
@@ -858,7 +970,7 @@ VIEWS.bk = {v(){
   <button class="btn pri big block" id="bkOut">${I.save} Crear respaldo</button>
   <button class="btn block" id="bkIn">Restaurar respaldo</button>`;
 }, b(){
-  $('#bkOut').onclick = () => shareOrDownload(new Blob([JSON.stringify(backupData())], {type:'application/json'}), `CalificaQR_respaldo_${fileName(cursoCorto())}_${today()}.json`);
+  $('#bkOut').onclick = async () => { const d = backupData(); try{ d.imgs = await TPL.allImgs(); }catch(e){} shareOrDownload(new Blob([JSON.stringify(d)], {type:'application/json'}), `CalificaQR_respaldo_${fileName(cursoCorto())}_${today()}.json`); };
   $('#bkIn').onclick = () => pickFile('', restoreFile);
 }};
 /* Restaurar desde un enlace privado (datos cifrados; la llave va solo en el enlace) */

@@ -1,5 +1,5 @@
-const CACHE = 'califica-v4';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './js/core.js', './js/ui.js', './js/hoja.js', './js/omr.js', './js/excel.js',
+const CACHE = 'califica-v5';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './js/core.js', './js/ui.js', './js/hoja.js', './js/omr.js', './js/plantilla.js', './js/excel.js',
   './vendor/jsQR.js', './vendor/qrcode.js', './vendor/jspdf.umd.min.js', './vendor/xlsx.bundle.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-180.png', './icons/favicon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });

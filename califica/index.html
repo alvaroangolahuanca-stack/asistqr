@@ -228,6 +228,22 @@ table.pl td.tt{font-weight:800;font-size:15px}
 .improw{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
 .improw input[type=text]{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
 .improw select{border:1px solid var(--line);border-radius:8px;padding:6px}
+.choicebtn{display:flex;flex-direction:column;gap:6px;text-align:left;padding:14px;border:1.5px solid var(--line);border-radius:16px;background:#fff;cursor:pointer;width:100%}
+.choicebtn b{display:flex;gap:8px;align-items:center;font:700 19px var(--display);text-transform:uppercase;color:var(--pri-dk)}
+.choicebtn b svg{width:24px;height:24px}
+.choicebtn span{font-size:14px;color:var(--muted)}
+.imgpick{border:2px dashed var(--line);border-radius:14px;background:var(--mist);padding:10px;display:flex;flex-direction:column;gap:6px;align-items:center;cursor:pointer;text-align:center}
+.imgpick .th{width:100%;aspect-ratio:3/4;border-radius:8px;background:#fff;display:grid;place-items:center;overflow:hidden;color:var(--muted)}
+.imgpick .th svg{width:36px;height:36px}
+.imgpick .th img{width:100%;height:100%;object-fit:contain}
+.imgpick small{color:var(--muted);font-size:12px}
+.autores{position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);background:#fff;border-radius:18px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.35);overflow:hidden}
+.autores .nb{width:46px;height:46px;border-radius:12px;background:var(--pri);color:#fff;display:grid;place-items:center;font:800 22px var(--display)}
+.autores b{font:800 20px/1.1 var(--display);text-transform:uppercase}
+.autores .nt{font:800 52px/1 var(--display);color:var(--ok)}
+.autores .nt small{font-size:20px;color:var(--muted)}
+.autores .bar{position:absolute;left:0;bottom:0;height:5px;background:var(--ok);animation:bar 2.6s linear forwards}
+@keyframes bar{from{width:100%}to{width:0}}
 </style>
 </head>
 <body>
@@ -241,6 +257,7 @@ table.pl td.tt{font-weight:800;font-size:15px}
 <script src="vendor/xlsx.bundle.js" defer></script>
 <script src="js/hoja.js"></script>
 <script src="js/omr.js"></script>
+<script src="js/plantilla.js"></script>
 <script src="js/excel.js"></script>
 <script src="js/core.js"></script>
 <script src="js/ui.js"></script>

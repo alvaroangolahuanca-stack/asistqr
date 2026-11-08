@@ -244,5 +244,5 @@ const HOJA = (() => {
     return a;
   }
 
-  return {build, parseQR, qrText, nParts, blanksOf, relOrder, PAPER, LET};
+  return {build, parseQR, qrText, nParts, blanksOf, relOrder, PAPER, LET, drawQR, clean};
 })();

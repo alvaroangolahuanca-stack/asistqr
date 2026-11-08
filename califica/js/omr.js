@@ -173,8 +173,8 @@ const OMR = (() => {
       const dd = rd(lay.num.dec), uu = rd(lay.num.uni);
       num = (dd >= 0 && uu >= 0) ? dd * 10 + uu : (dd === null && uu >= 0 ? uu : 0);
     }
-    return {ok:true, info, num, ans, lowConf, marks, H, s:s0};
+    return {ok:true, info, num, ans, lowConf, marks, H, s:s0, G};
   }
 
-  return {analyze, homography, ap, decide};
+  return {analyze, homography, ap, decide, toGray};
 })();

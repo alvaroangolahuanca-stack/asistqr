@@ -168,6 +168,7 @@ function emptyMark(q){
     case 'sel': return null; case 'vf': return (q.items || []).map(() => null); case 'rel': return (q.pares || []).map(() => null);
     case 'comp': return HOJA.blanksOf(q.texto).map(() => null); case 'lista': return Array.from({length:+q.n || 0}, () => null);
     case 'abi': return null; case 'prob': return (q.crit || []).map(() => false);
+    case 'tpl': return Array.from({length:q.n || 0}, () => null);
   }
 }
 function qScore(q, v){
@@ -177,6 +178,7 @@ function qScore(q, v){
     case 'vf': k = (q.items || []).filter((it, i) => v && v[i] === (it.ok === 'F' ? 1 : 0)).length; break;
     case 'rel': k = (q.pares || []).filter((p, i) => v && v[i] === relKey(q, i)).length; break;
     case 'comp': case 'lista': k = (v || []).filter(x => x === true).length; break;
+    case 'tpl': n = q.n || 0; k = (q.ok || []).filter((o, i) => o >= 0 && v && v[i] === o).length; break;
     case 'abi': return {pts:isNum(v) ? Math.max(0, Math.min(max, v)) : 0, max, k:null, n:null};
     case 'prob': { const cr = q.crit || [], tot = cr.reduce((s, c) => s + (+c.p || 0), 0) || 1; const got = cr.reduce((s, c, i) => s + (v && v[i] ? +c.p || 0 : 0), 0); return {pts:r1(got / tot * max), max, k:null, n:null}; }
   }
@@ -287,4 +289,5 @@ function restoreData(d){
   cfg = Object.assign(defaultCfg(), d.cfg || {}); cfg.setup = true; cursos = d.cursos || []; curId = d.curId || (cursos[0] && cursos[0].id) || null;
   cols = d.cols || []; notas = d.notas || {}; evals = d.evals || []; resp = d.resp || {};
   saveCfg(); saveCursos(); LS.set('cqr_cur', curId); saveCols(); saveNotas(); saveEvals(); saveResp(); applyTheme();
+  if(d.imgs && window.TPL) Object.entries(d.imgs).forEach(([k, v]) => TPL.put(k, v).catch(() => {}));
 }
