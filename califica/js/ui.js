@@ -427,8 +427,13 @@ async function buildPDF(ev, mode){
   const c = cursos.find(x => x.id === ev.cid) || curso();
   const people = mode === 'nombre' ? (c.est || []).filter(s => !s.ret).sort((a, b) => a.n - b.n).map(s => ({n:s.n, nombre:s.nombre})) : null;
   const ctx = hojaCtx(ev, people); ctx.logoUE = await logoInfo(cfg.logoUE); ctx.logoGrado = await logoInfo(c.logoGrado);
-  // 1) maqueta de prueba para saber si cambió el diseño
-  const probe = HOJA.build(ev, Object.assign({}, ctx, {students:people ? people.slice(0, 1) : null})).layout;
+  // 1) ajustar letra y espacios para que la evaluación entre en UNA hoja
+  let probe = null;
+  for(const k of [1, .93, .86, .8, .74, .68, .62, .56, .5, .45]){
+    ctx.k = k; probe = HOJA.build(ev, Object.assign({}, ctx, {students:people ? people.slice(0, 1) : null})).layout;
+    if(probe.n === 1) break;
+  }
+  if(probe.n > 1) toast(`La evaluación es larga: ocupa ${probe.n} hojas. Prueba papel Oficio o quita líneas de respuesta.`, 5000);
   const key = JSON.stringify(probe.pages) + JSON.stringify(probe.num) + probe.W + 'x' + probe.H;
   ev.lays = ev.lays || [];
   let L = ev.lays.find(l => l.mode === mode && l.key === key);

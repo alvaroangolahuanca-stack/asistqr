@@ -56,6 +56,9 @@ const HOJA = (() => {
     const doc = new jsPDF({unit:'mm', format:[W, H], compress:true});
     const col = rgb(ctx.color), soft = tint(col, .9);
     const XR = W - XL, BOTTOM = H - 17;
+    const K = Math.min(1, Math.max(.45, +ctx.k || 1));          // densidad: <1 achica letra y espacios para que entre en 1 hoja
+    const F = Math.max(.8, 1 - (1 - K) * .45);                                // la letra se achica menos que los espacios
+    const BR = 2.9 * Math.max(.76, K);
     const copy = !ctx.students;
     const people = copy ? [null] : ctx.students;
     const lay = {W, H, pages:[], num:null, qr:qrRect(W), mk:mkCenters(W, H)};
@@ -73,7 +76,7 @@ const HOJA = (() => {
       // marcas de esquina
       doc.setFillColor(0, 0, 0); mkCenters(W, H).forEach(([cx, cy]) => doc.rect(cx - MK.s / 2, cy - MK.s / 2, MK.s, MK.s, 'F'));
       const q = qrRect(W); drawQR(doc, qrText(ev.id, ev.ver || 1, pg, st ? st.n : 0), q.x, q.y, q.s);
-      font('normal', 7, [140, 140, 140]); doc.text(`CalificaQR  ·  Página ${pg + 1} de ${tot}`, W / 2, H - 9.6, {align:'center'});
+      font('normal', 7, [140, 140, 140]); doc.text(`Rellena por completo el círculo de tu respuesta  ·  Página ${pg + 1} de ${tot}`, W / 2, H - 9.6, {align:'center'});
     }
     function header(st, pg, tot){
       frame(st, pg, tot);
@@ -95,14 +98,12 @@ const HOJA = (() => {
       font('normal', 8.5, [80, 80, 80]);
       doc.text(clean(`${ctx.curso}  ·  ${ctx.trim}  ·  Gestión ${ctx.gestion}${ev.fecha ? '  ·  ' + ev.fecha.split('-').reverse().join('/') : ''}`), cx, 28 + tl.length * lh(13.5) * 1.1 - 1.2, {align:'center'});
       // Recuadro del estudiante
-      let by = 40, bh = copy ? 25 : 15;
+      let by = 38, bh = copy ? 25 : 9;
       doc.setFillColor(...soft); doc.setDrawColor(...col); doc.setLineWidth(.35); doc.roundedRect(XL, by, XR - XL, bh, 2.5, 2.5, 'FD');
       if(!copy){
-        font('bold', 10.5); doc.text('Nombre:', XL + 4, by + 6.3); font('normal', 10.5); doc.text(clean(st.nombre).toUpperCase(), XL + 21, by + 6.3);
-        font('bold', 10.5); doc.text(`Nº ${st.n}`, XR - 4, by + 6.3, {align:'right'});
-        font('bold', 9.5, [60, 60, 60]); doc.text('Puntaje:', XL + 4, by + 12); doc.setDrawColor(90, 90, 90); doc.setLineWidth(.25); doc.line(XL + 19, by + 12.4, XL + 40, by + 12.4);
-        font('normal', 9.5, [60, 60, 60]); doc.text(`/ ${ctx.total}`, XL + 41.5, by + 12);
-        font('bold', 9.5, [60, 60, 60]); doc.text('Nota:', XL + 62, by + 12); doc.line(XL + 72, by + 12.4, XL + 90, by + 12.4);
+        font('bold', 10.5); doc.text(`Nº ${st.n}`, XL + 4, by + 6); font('normal', 10.5); doc.text(split(clean(st.nombre).toUpperCase(), XR - XL - 80)[0], XL + 17, by + 6);
+        font('bold', 9.5, [60, 60, 60]); doc.text('Puntaje:', XR - 58, by + 6); doc.setDrawColor(90, 90, 90); doc.setLineWidth(.25); doc.line(XR - 43, by + 6.4, XR - 24, by + 6.4);
+        font('normal', 9.5, [60, 60, 60]); doc.text(`/ ${ctx.total}`, XR - 4, by + 6, {align:'right'});
       } else {
         font('bold', 10.5); doc.text('Nombre:', XL + 4, by + 6.6); doc.setDrawColor(90, 90, 90); doc.setLineWidth(.25); doc.line(XL + 21, by + 7, XR - 96, by + 7);
         font('bold', 9.5, [60, 60, 60]); doc.text('Puntaje:', XL + 4, by + 13); doc.line(XL + 19, by + 13.4, XL + 40, by + 13.4); font('normal', 9.5, [60, 60, 60]); doc.text(`/ ${ctx.total}`, XL + 41.5, by + 13);
@@ -114,10 +115,9 @@ const HOJA = (() => {
         rows.forEach(r => { font('bold', 7.5, [90, 90, 90]); doc.text(r.t, x0 - BR - 2, r.y + 1, {align:'right'});
           for(let o = 0; o < r.n; o++){ const bx = x0 + o * 7.4; bub(bx, r.y, String(o), null); if(rec) lay.num[r.k].push({x:+bx.toFixed(2), y:+r.y.toFixed(2), r:BR, o}); } });
       }
-      by += bh + 5;
-      font('italic', 8.5, [90, 90, 90]);
-      const ins = clean(ev.instr || 'Lee con atención. En las preguntas con círculos, rellena por completo el círculo de tu respuesta con lápiz oscuro o bolígrafo.');
-      const il = split(ins, XR - XL); doc.text(il, XL, by); by += il.length * lh(8.5) + 3;
+      by += bh + 4.6;
+      if(ev.instr){ font('italic', 8.5, [90, 90, 90]); const il = split(clean(ev.instr), XR - XL); doc.text(il, XL, by); by += il.length * lh(8.5) + 3.4; }
+      else by += .6;
       return by;
     }
 
@@ -126,17 +126,17 @@ const HOJA = (() => {
       const x0 = XL + 9, w = XR - x0; let y = y0;
       const T = (lines, x, yy, opt) => { if(draw) doc.text(lines, x, yy, opt); };
       // enunciado
-      font('bold', 10.5); const L = split(q.txt || '', w - 14);
+      font('bold', 10.5 * F); const L = split(q.txt || '', w - 14);
       if(draw){
-        doc.setFillColor(...col); doc.circle(XL + 3.4, y - 1.3, 3.4, 'F'); font('bold', 9, [255, 255, 255]); doc.text(String(n), XL + 3.4, y - 1.3 + pt(9) * .35, {align:'center'});
-        font('normal', 8, [140, 140, 140]); doc.text(`${q.pts || 5} pts`, XR, y, {align:'right'}); font('bold', 10.5);
+        doc.setFillColor(...col); doc.circle(XL + 3.4, y - 1.3, 3.4, 'F'); font('bold', 9 * F, [255, 255, 255]); doc.text(String(n), XL + 3.4, y - 1.3 + pt(9) * .35, {align:'center'});
+        font('normal', 8 * F, [140, 140, 140]); doc.text(`${q.pts || 5} pts`, XR, y, {align:'right'}); font('bold', 10.5 * F);
       }
-      T(L, x0, y, {lineHeightFactor:1.25}); y += Math.max(1, L.length) * lh(10.5) + 1.8;
-      const fs = 10.2, row = Math.max(lh(fs), 2 * BR + 1.4);
+      T(L, x0, y, {lineHeightFactor:1.25}); y += Math.max(1, L.length) * lh(10.5 * F) + 1.8 * K;
+      const fs = 10.2 * F, row = Math.max(lh(fs), 2 * BR + .5 + .9 * K);
       switch(q.tipo){
         case 'sel': {
           const ops = q.ops || []; font('normal', fs);
-          let nc = 1; for(const k of [3, 2]){ if(ops.length >= k && ops.every(o => doc.getTextWidth(clean(o)) <= w / k - 2 * BR - 6)){ nc = k; break; } }
+          let nc = 1; for(const k of [3, 2]){ if(ops.length >= k && ops.every(o => doc.getTextWidth(clean(o)) <= w / k - 2 * BR - 4)){ nc = k; break; } }
           const cw = w / nc;
           for(let i = 0; i < ops.length; i += nc){ let hh = row;
             for(let c = 0; c < nc && i + c < ops.length; c++){ const k = i + c, xx = x0 + c * cw; font('normal', fs); const l = split(ops[k], cw - 2 * BR - 5); const cy = y + 1.2;
@@ -153,19 +153,19 @@ const HOJA = (() => {
         }
         case 'rel': {
           const pr = q.pares || [], ord = relOrder(q), nd = pr.length, gap = 2 * BR + .9;
-          font('italic', 8.3, [110, 110, 110]); T('Rellena la letra de la descripción que corresponde.', x0, y); y += 4.4;
-          const tw = 46, bx0 = x0 + tw + 2 + BR, rx = bx0 + (nd - 1) * gap + BR + 5, rw = XR - rx;
+          font('italic', 8.3 * F, [110, 110, 110]); T('Rellena la letra de la descripción que corresponde.', x0, y); y += Math.max(4, 4.4 * K);
+          const tw = 46 * Math.max(K, .85), bx0 = x0 + tw + 2 + BR, rx = bx0 + (nd - 1) * gap + BR + 5, rw = XR - rx;
           // columna izquierda: elementos con sus burbujas
           let yl = y;
-          pr.forEach((p, i) => { font('bold', 9.8); const l = split(`${i + 1}. ${p.i}`, tw); const cy = yl + 1.2;
+          pr.forEach((p, i) => { font('bold', 9.8 * F); const l = split(`${i + 1}. ${p.i}`, tw); const cy = yl + 1.2;
             T(l, x0, cy, {lineHeightFactor:1.2});
             if(draw) for(let o = 0; o < nd; o++) bub(bx0 + o * gap, cy - 1.2, LET[o], {q:q.id, i, o});
-            yl += Math.max(row, l.length * lh(9.8) + 1.2) + .5; });
+            yl += Math.max(row, l.length * lh(9.8 * F) + 1.2) + .5; });
           // columna derecha: descripciones mezcladas
           let yr = y + 2.4; const desc = [];
-          ord.forEach((pi, li) => { font('normal', 9.4); const l = split(pr[pi].d, rw - 9); desc.push([li, l, yr]); yr += l.length * lh(9.4) + 1.2; });
+          ord.forEach((pi, li) => { font('normal', 9.4 * F); const l = split(pr[pi].d, rw - 9); desc.push([li, l, yr]); yr += l.length * lh(9.4 * F) + 1.2; });
           if(draw){ doc.setFillColor(248, 248, 248); doc.setDrawColor(205, 205, 205); doc.setLineWidth(.2); doc.roundedRect(rx, y - 2.6, rw, yr - y + 1.2, 1.8, 1.8, 'FD');
-            desc.forEach(([li, l, yy2]) => { font('bold', 9.4, col); doc.text(LET[li] + ')', rx + 2.2, yy2); font('normal', 9.4); doc.text(l, rx + 7.5, yy2, {lineHeightFactor:1.25}); }); }
+            desc.forEach(([li, l, yy2]) => { font('bold', 9.4 * F, col); doc.text(LET[li] + ')', rx + 2.2, yy2); font('normal', 9.4 * F); doc.text(l, rx + 7.5, yy2, {lineHeightFactor:1.25}); }); }
           y = Math.max(yl, yr + 1);
           break;
         }
@@ -173,31 +173,31 @@ const HOJA = (() => {
           font('normal', fs); y = flow(q.texto || '', x0, w, y + .6, fs, draw) + .6; break;
         }
         case 'lista': {
-          const n = Math.max(1, +q.n || 1), per = n >= 4 ? (n === 4 ? 4 : 3) : n, bw = (w - (per - 1) * 3) / per, bh = 12;
+          const n = Math.max(1, +q.n || 1), per = n >= 4 ? (n === 4 ? 4 : 3) : n, bw = (w - (per - 1) * 3) / per, bh = Math.max(9.5, 12 * K);
           for(let i = 0; i < n; i++){ const r = Math.floor(i / per), c = i % per, xx = x0 + c * (bw + 3), yy = y - 2 + r * (bh + 3);
-            if(draw){ doc.setDrawColor(...col); doc.setLineWidth(.3); doc.roundedRect(xx, yy, bw, bh, 1.6, 1.6, 'S'); font('bold', 8.5, col); doc.text(LET[i] + ')', xx + 1.8, yy + 3.6); } }
+            if(draw){ doc.setDrawColor(...col); doc.setLineWidth(.3); doc.roundedRect(xx, yy, bw, bh, 1.6, 1.6, 'S'); font('bold', 8.5 * F, col); doc.text(LET[i] + ')', xx + 1.8, yy + 3.6); } }
           y += Math.ceil(n / per) * (bh + 3) - 1; break;
         }
         case 'abi': {
           const n = Math.max(1, +q.lineas || 3);
-          for(let i = 0; i < n; i++){ y += 7.2; if(draw){ doc.setDrawColor(150, 150, 150); doc.setLineWidth(.25); doc.line(x0, y, XR, y); } }
+          for(let i = 0; i < n; i++){ y += Math.max(6.2, 7.2 * K); if(draw){ doc.setDrawColor(150, 150, 150); doc.setLineWidth(.25); doc.line(x0, y, XR, y); } }
           y += 2.2; break;
         }
         case 'prob': {
-          const h = Math.max(20, +q.alto || 50);
-          if(draw){ doc.setDrawColor(170, 170, 170); doc.setLineWidth(.25); doc.roundedRect(x0, y - 2, w, h, 1.8, 1.8, 'S'); font('italic', 8, [140, 140, 140]); doc.text('Desarrollo / procedimiento:', x0 + 2, y + 1.6); }
+          const h = Math.max(25, (+q.alto || 50) * Math.max(K, .7));
+          if(draw){ doc.setDrawColor(170, 170, 170); doc.setLineWidth(.25); doc.roundedRect(x0, y - 2, w, h, 1.8, 1.8, 'S'); font('italic', 8 * F, [140, 140, 140]); doc.text('Desarrollo / procedimiento:', x0 + 2, y + 1.6); }
           y += h + 3.6;
-          if(draw){ font('bold', 10); doc.text('Respuesta:', x0, y); doc.setDrawColor(90, 90, 90); doc.line(x0 + 20, y + .5, x0 + 90, y + .5); }
+          if(draw){ font('bold', 10 * F); doc.text('Respuesta:', x0, y); doc.setDrawColor(90, 90, 90); doc.line(x0 + 20, y + .5, x0 + 90, y + .5); }
           y += 3; break;
         }
       }
-      return y + 3.2;
+      return y + 3.2 * K;
     }
 
     /* Texto con espacios en blanco (___) en línea */
     function flow(text, x0, w, y, fs, draw){
-      const BW = 36; font('normal', fs); const sp = doc.getTextWidth(' ');
-      const parts = clean(text).split(/(_{3,}|\n)/); let x = x0; const L = lh(fs) * 1.55;
+      const BW = 36 * Math.max(K, .8); font('normal', fs); const sp = doc.getTextWidth(' ');
+      const parts = clean(text).split(/(_{3,}|\n)/); let x = x0; const L = Math.max(5.8, lh(fs) * (1.25 + .3 * K));
       parts.forEach(p => {
         if(p === '\n'){ x = x0; y += L; return; }
         if(/^_{3,}$/.test(p)){
